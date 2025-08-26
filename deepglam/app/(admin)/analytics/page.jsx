@@ -1,28 +1,17 @@
-"use client";
-import { useEffect, useState } from "react";
+// app/(admin)/analytics/page.jsx
 import { getStaffPerformance } from "@/services/analyticsService";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const COLORS = ["#f97316", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"];
 
-export default function AnalyticsPage() {
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default async function AnalyticsPage() {
+  // ✅ fetch data on the server (Next.js App Router)
+  const res = await getStaffPerformance();
+  const analytics = res.ok ? res.data : null;
 
-  const fetchAnalytics = async () => {
-    setLoading(true);
-    const res = await getStaffPerformance();
-    if (res.ok) setAnalytics(res.data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  if (loading) return <p className="p-6">Loading analytics...</p>;
-
-  if (!analytics) return <p className="p-6">No analytics data available.</p>;
+  if (!analytics) {
+    return <p className="p-6">No analytics data available.</p>;
+  }
 
   return (
     <div>

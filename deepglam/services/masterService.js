@@ -59,7 +59,54 @@ export const deleteBanner = async (id) => { try { const { data } = await api.del
 export const getBlogs = async (params = {}) => { try { const { data } = await api.get("/master/blogs", { params }); return { ok: true, data }; } catch (e) { return { ok: false, error: parseError(e) }; } };
 export const createBlog = async (payload) => { try { const { data } = await api.post("/master/blogs", payload); return { ok: true, data }; } catch (e) { return { ok: false, error: parseError(e) }; } };
 export const deleteBlog = async (id) => { try { const { data } = await api.delete(`/master/blogs/${id}`); return { ok: true, data }; } catch (e) { return { ok: false, error: parseError(e) }; } };
+/* ───── Banners ───── */
+export const getBanners = async (params = {}) => {
+  try {
+    const { data } = await api.get("/master/banners", { params });
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
 
+export const createBanner = async (payload) => {
+  try {
+    const { data } = await api.post("/master/banners", payload);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/* ───── HSN ───── */
+export const createHSN = async (payload) => {
+  try {
+    const { data } = await api.post("/master/hsn", payload); // or PUT if your API uses PUT
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/* ───── Profit % Master ───── */
+export const getProfits = async () => {
+  try {
+    const { data } = await api.get("/master/profit");
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+export const setProfit = async (payload) => {
+  try {
+    // switch to PUT if your backend expects update
+    const { data } = await api.post("/master/profit", payload);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
 export default {
   getBrands, createBrand, deleteBrand,
   getCategories, createCategory, deleteCategory,
@@ -74,4 +121,5 @@ export default {
   getHSN, deleteHSN,
   deleteBanner,
   getBlogs, createBlog, deleteBlog,
+  getBanners,createBanner,createHSN,getProfits,setProfit
 };

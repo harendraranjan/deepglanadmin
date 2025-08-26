@@ -43,7 +43,23 @@ export const updateStatus = async (id, statusPayload) => {
 
 export const cancel = async (id, payload = {}) => updateStatus(id, { status: "cancelled", ...payload });
 export const markReturned = async (id, payload = {}) => updateStatus(id, { status: "returned", ...payload });
+export const getReturnOrders = async (params = {}) => {
+  try {
+    const { data } = await api.get("/orders/returns", { params });
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
 
+export const updateOrderStatus = async (orderId, status, note) => {
+  try {
+    const { data } = await api.put(`/orders/${orderId}/status`, { status, note });
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
 export default {
   placeOrder,
   list,
@@ -56,4 +72,6 @@ export default {
   cancel,
   markReturned,
   parseError,
+  getReturnOrders,
+  updateOrderStatus
 };

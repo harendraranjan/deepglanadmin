@@ -3,7 +3,7 @@ import axios from "axios";
 
 // ✅ Base URL from .env.local
 export const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://deepglamserver.onrender.com/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
 const api = axios.create({
   baseURL: BASE_URL,

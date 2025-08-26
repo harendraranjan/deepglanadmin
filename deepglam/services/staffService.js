@@ -110,10 +110,14 @@ export async function collectPayment({ buyerId, amount, method, reference, note,
     return ok(data);
   } catch (e) { return fail(e); }
 }
-
+export const getStaff = async (params = {}) => {
+  try { const { data } = await api.get("/staff", { params }); return { ok: true, data }; }
+  catch (e) { return { ok: false, error: parseError(e) }; }
+};
 /** (Optional) Collected list — your routes don't expose it yet.
  * Add GET /staff/payments/collected to backend if you want the list screen.
  */
 export async function getPaymentsCollected() {
   return ok({ items: [], total: 0, hasMore: false }); // placeholder
 }
+export default { getStaff };

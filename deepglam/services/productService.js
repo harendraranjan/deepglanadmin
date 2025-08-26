@@ -184,6 +184,16 @@ function normalizeListParams(p) {
   return out;
 }
 
+export const getAllProducts = async (params = {}) => {
+  try { const { data } = await api.get("/products", { params }); return { ok: true, data }; }
+  catch (e) { return { ok: false, error: parseError(e) }; }
+};
+
+export const approveProduct = async (id) => {
+  try { const { data } = await api.put(`/products/approve/${id}`); return { ok: true, data }; }
+  catch (e) { return { ok: false, error: parseError(e) }; }
+};
+
 export default {
   createProduct,
   createProductMultipart,
@@ -195,4 +205,6 @@ export default {
   getById,
   approve,
   clone,
+  getAllProducts,
+  approveProduct,
 };

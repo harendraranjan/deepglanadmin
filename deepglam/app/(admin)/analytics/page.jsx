@@ -1,22 +1,7 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { getStaffPerformance } from "@/services/analyticsService";
-
-// ── Recharts dynamic (client-only) imports ──────────────────────────
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then(m => m.ResponsiveContainer),
-  { ssr: false }
-);
-const BarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: false });
-const Bar = dynamic(() => import("recharts").then(m => m.Bar), { ssr: false });
-const XAxis = dynamic(() => import("recharts").then(m => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import("recharts").then(m => m.YAxis), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then(m => m.Tooltip), { ssr: false });
-const PieChart = dynamic(() => import("recharts").then(m => m.PieChart), { ssr: false });
-const Pie = dynamic(() => import("recharts").then(m => m.Pie), { ssr: false });
-const Cell = dynamic(() => import("recharts").then(m => m.Cell), { ssr: false });
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const COLORS = ["#f97316", "#22c55e", "#3b82f6", "#ef4444", "#8b5cf6"];
 
@@ -24,15 +9,19 @@ export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchAnalytics = async () => {
+    setLoading(true);
+    const res = await getStaffPerformance();
+    if (res.ok) setAnalytics(res.data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      const res = await getStaffPerformance();
-      if (res.ok) setAnalytics(res.data);
-      setLoading(false);
-    })();
+    fetchAnalytics();
   }, []);
 
   if (loading) return <p className="p-6">Loading analytics...</p>;
+
   if (!analytics) return <p className="p-6">No analytics data available.</p>;
 
   return (
@@ -62,39 +51,36 @@ export default function AnalyticsPage() {
       {/* Sales Over Time */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h2 className="text-lg font-semibold mb-4">Sales Over Time</h2>
-        <div style={{ width: "100%", height: 300 }}>
-          <ResponsiveContainer>
-            <BarChart data={analytics.salesOverTime}>
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="sales" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={analytics.salesOverTime}>
+            <XAxis dataKey="month" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="sales" fill="#f97316" />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Staff Performance */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h2 className="text-lg font-semibold mb-4">Staff Performance</h2>
-        <div style={{ width: "100%", height: 300 }}>
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie
-                data={analytics.staffPerformance}
-                dataKey="achieved"
-                nameKey="staff"
-                outerRadius={120}
-                label
-              >
-                {analytics.staffPerformance.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={analytics.staffPerformance}
+              dataKey="achieved"
+              nameKey="staff"
+              outerRadius={120}
+              fill="#8884d8"
+              label
+            >
+              {analytics.staffPerformance.map((_, i) => (
+                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Top Buyers */}

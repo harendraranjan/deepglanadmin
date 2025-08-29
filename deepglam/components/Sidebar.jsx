@@ -124,9 +124,9 @@ export default function Sidebar() {
               {[
                 { href: "/products/add-type", label: "Add Product Type" },
                 { href: "/products/add", label: "Add Product" },
-                { href: "/products/list", label: "Product List" },
+               // { href: "/products/list", label: "Product List" },
                 { href: "/products/stock", label: "Product Stock" },
-                { href: "/products/pending", label: "Pending Products" },
+                //{ href: "/products/pending", label: "Pending Products" },
               ].map((item) => (
                 <Link
                   key={item.href}
@@ -168,11 +168,14 @@ export default function Sidebar() {
             <div className="ml-12 mr-3 space-y-1 mb-3 animate-fadeIn">
               {[
                 { href: "/orders/list", label: "All Orders" },
-                { href: "/orders/delivered", label: "Delivered Orders" },
-                { href: "/orders/canceled", label: "Canceled Orders" },
+                //{ href: "/orders/billing", label: "Delivered Orders" },
+                //{ href: "/orders/canceled", label: "Canceled Orders" },
                 { href: "/orders/returns", label: "Return Orders" },
-                { href: "/orders/reject-report", label: "Reject Order Report" },
-                { href: "/orders/reports", label: "Order Reports" },
+                { href: "/orders/reject-report", label: "Cancel Order" },
+                { href: "/orders/reports", label: "Delivered Order" },
+                 { href: "/orders/Placed", label: " Placed Order " },
+                  { href: "/orders/Bill", label: " Bill Order " },
+                  
               ].map((item) => (
                 <Link
                   key={item.href}

@@ -67,28 +67,6 @@ export const rejectBuyer = async (id, payload = {}) => {
   }
 };
 
-
-export const getProfile = async () => {
-  try { const { data } = await api.get("/users/me"); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export const createUser = async (payload) => {
-  try { const { data } = await api.post("/users", payload); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export const getAllUsers = async (params = {}) => {
-  try { const { data } = await api.get("/users", { params }); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export const updateUserRole = async (userId, payload) => {
-  try { const { data } = await api.put(`/users/${userId}/role`, payload); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-
 export default {
   getById,
   updateProfile,
@@ -96,8 +74,4 @@ export default {
   listBuyers,
   approveBuyer,
   rejectBuyer,
-  getProfile, 
-  createUser, 
-  getAllUsers, 
-  updateUserRole
 };

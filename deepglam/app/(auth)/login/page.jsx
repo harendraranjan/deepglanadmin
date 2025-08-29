@@ -33,7 +33,7 @@ export default function LoginPage() {
 
     try {
       const res = await apiLogin({ 
-        identifier: formData.email, 
+        email: formData.email, 
         password: formData.password 
       });
       

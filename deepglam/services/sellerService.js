@@ -133,22 +133,6 @@ export const getSellerProfile = async () => {
   }
 };
 
-export const getSellers = async (params = {}) => {
-  try { const { data } = await api.get("/sellers", { params }); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export const approveSeller = async (sellerId) => {
-  try { const { data } = await api.put(`/sellers/approve/${sellerId}`); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export const rejectSeller = async (sellerId, payload = {}) => {
-  try { const { data } = await api.put(`/sellers/reject/${sellerId}`, payload); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-
 // Default export with all functions
 export default {
   getDisapproved,
@@ -159,5 +143,4 @@ export default {
   update,
   getById,
   getSellerProfile,
-  getSellers, approveSeller, rejectSeller
 };

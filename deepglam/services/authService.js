@@ -8,9 +8,9 @@ const parseError = (err) =>
   "Something went wrong";
 
 /** POST /auth/login */
-export const login = async ({ identifier, password }) => {
+export const login = async ({ email, password }) => {
   try {
-    const { data } = await api.post("/auth/login", { identifier, password });
+    const { data } = await api.post("/auth/login", { email, password });
     const { token, user } = data || {};
 
     if (token && user) {

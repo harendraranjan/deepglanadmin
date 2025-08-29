@@ -184,52 +184,6 @@ function normalizeListParams(p) {
   return out;
 }
 
-export const getAllProducts = async (params = {}) => {
-  try { const { data } = await api.get("/products", { params }); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export const approveProduct = async (id) => {
-  try { const { data } = await api.put(`/products/approve/${id}`); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-export const getProductTypes = async (params = {}) => {
-  try {
-    // adjust path if your backend uses /master/product-types
-    const { data } = await api.get("/products/types", { params });
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-export const createProductType = async (payload) => {
-  try {
-    const { data } = await api.post("/products/types", payload);
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-export const deleteProductType = async (id) => {
-  try {
-    const { data } = await api.delete(`/products/types/${id}`);
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-// (optional) if you plan to edit names:
-export const updateProductType = async (id, payload) => {
-  try {
-    const { data } = await api.put(`/products/types/${id}`, payload);
-    return { ok: true, data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
 export default {
   createProduct,
   createProductMultipart,
@@ -241,9 +195,4 @@ export default {
   getById,
   approve,
   clone,
-  getAllProducts,
-  approveProduct,
-  getProductTypes,
-  createProductType,
-  deleteProductType
 };

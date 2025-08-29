@@ -4,17 +4,33 @@ import { createProduct } from "@/services/productService";
 import { getBrands } from "@/services/masterService";
 import { getSellers } from "@/services/sellerService";
 
+/* App-jaisi enums (mobile ke saath aligned) */
+const MAIN_CATEGORIES = ["Clothing"];
+const SUB_CATEGORIES = ["men", "women", "kids"];
+const PRODUCT_TYPES = [
+  "formal",
+  "casual",
+  "traditional",
+  "partywear",
+  "festive",
+  "ethnic",
+  "western",
+];
+const GST_TYPES = ["inclusive", "exclusive"];
+
 export default function AddProductPage() {
   const [form, setForm] = useState({
     productname: "",
-    mainCategory: "",
+    mainCategory: MAIN_CATEGORIES[0] || "",
     subCategory: "",
+    productType: "",
     MOQ: 1,
     purchasePrice: "",
     margin: "",
     mrp: "",
     discountPercentage: "",
     gstPercentage: "",
+    gstType: "exclusive",
     stock: "",
     brand: "",
     sellerId: "",
@@ -27,10 +43,7 @@ export default function AddProductPage() {
 
   useEffect(() => {
     (async () => {
-      const [brandRes, sellerRes] = await Promise.all([
-        getBrands(),
-        getSellers(),
-      ]);
+      const [brandRes, sellerRes] = await Promise.all([getBrands(), getSellers()]);
       if (brandRes.ok) setBrands(brandRes.data);
       if (sellerRes.ok) setSellers(sellerRes.data);
     })();
@@ -50,14 +63,16 @@ export default function AddProductPage() {
       alert("✅ Product created successfully");
       setForm({
         productname: "",
-        mainCategory: "",
+        mainCategory: MAIN_CATEGORIES[0] || "",
         subCategory: "",
+        productType: "",
         MOQ: 1,
         purchasePrice: "",
         margin: "",
         mrp: "",
         discountPercentage: "",
         gstPercentage: "",
+        gstType: "exclusive",
         stock: "",
         brand: "",
         sellerId: "",
@@ -69,14 +84,17 @@ export default function AddProductPage() {
     setLoading(false);
   };
 
+  const cap = (s) => s?.charAt(0).toUpperCase() + s?.slice(1);
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Add Product (Admin)</h1>
 
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-6 rounded shadow"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6 rounded shadow"
       >
+        {/* Product Name */}
         <input
           type="text"
           name="productname"
@@ -86,23 +104,50 @@ export default function AddProductPage() {
           className="border p-2 rounded"
           required
         />
-        <input
-          type="text"
+
+        {/* MAIN CATEGORY → dropdown (app-jaisa) */}
+        <select
           name="mainCategory"
-          placeholder="Main Category"
           value={form.mainCategory}
           onChange={handleChange}
           className="border p-2 rounded"
           required
-        />
-        <input
-          type="text"
+        >
+          <option value="">Main Category</option>
+          {MAIN_CATEGORIES.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+
+        {/* SUB CATEGORY → dropdown (men/women/kids) */}
+        <select
           name="subCategory"
-          placeholder="Sub Category"
           value={form.subCategory}
           onChange={handleChange}
           className="border p-2 rounded"
-        />
+          required
+        >
+          <option value="">Sub Category</option>
+          {SUB_CATEGORIES.map((v) => (
+            <option key={v} value={v}>{cap(v)}</option>
+          ))}
+        </select>
+
+        {/* PRODUCT TYPE → dropdown */}
+        <select
+          name="productType"
+          value={form.productType}
+          onChange={handleChange}
+          className="border p-2 rounded"
+          required
+        >
+          <option value="">Product Type</option>
+          {PRODUCT_TYPES.map((v) => (
+            <option key={v} value={v}>{cap(v)}</option>
+          ))}
+        </select>
+
+        {/* MOQ */}
         <input
           type="number"
           name="MOQ"
@@ -111,6 +156,8 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
+        {/* Purchase Price */}
         <input
           type="number"
           name="purchasePrice"
@@ -119,6 +166,8 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
+        {/* Margin (%) */}
         <input
           type="number"
           name="margin"
@@ -127,6 +176,8 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
+        {/* MRP (keep as-is per “wahi style”) */}
         <input
           type="number"
           name="mrp"
@@ -135,6 +186,8 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
+        {/* Discount % */}
         <input
           type="number"
           name="discountPercentage"
@@ -143,6 +196,8 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
+        {/* GST % */}
         <input
           type="number"
           name="gstPercentage"
@@ -151,6 +206,21 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded"
         />
+
+        {/* GST TYPE → dropdown (inclusive/exclusive) */}
+        <select
+          name="gstType"
+          value={form.gstType}
+          onChange={handleChange}
+          className="border p-2 rounded"
+        >
+          <option value="">GST Type</option>
+          {GST_TYPES.map((v) => (
+            <option key={v} value={v}>{cap(v)}</option>
+          ))}
+        </select>
+
+        {/* Stock */}
         <input
           type="number"
           name="stock"
@@ -160,22 +230,18 @@ export default function AddProductPage() {
           className="border p-2 rounded"
         />
 
-        {/* Select Brand */}
-        <select
-          name="brand"
-          value={form.brand}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        >
-          <option value="">Select Brand</option>
-          {brands.map((b) => (
-            <option key={b._id} value={b.name}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+        {/* Select Brand (as-is) */}
+        <input
+  type="text"
+  name="brand"
+  placeholder="Enter Brand Name"
+  value={form.brand}
+  onChange={handleChange}
+  className="border p-2 rounded"
+/>
 
-        {/* Select Seller */}
+
+        {/* Select Seller (as-is) */}
         <select
           name="sellerId"
           value={form.sellerId}
@@ -190,7 +256,7 @@ export default function AddProductPage() {
           ))}
         </select>
 
-        {/* Description */}
+        {/* Description (as-is) */}
         <textarea
           name="description"
           placeholder="Product Description"
@@ -203,7 +269,7 @@ export default function AddProductPage() {
         <button
           type="submit"
           disabled={loading}
-          className="col-span-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600"
+          className="col-span-full bg-[#f26522] text-white py-2 rounded hover:opacity-90"
         >
           {loading ? "Saving..." : "Add Product"}
         </button>

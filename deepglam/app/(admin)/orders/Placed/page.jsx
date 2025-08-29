@@ -7,7 +7,7 @@ export default function OrdersPage() {
 
   // Orders fetch karna
   const fetchOrders = async () => {
-    const res = await fetch("http://localhost:5000/api/orders");
+    const res = await fetch("https://deepglam.onrender.com/api/orders");
     const data = await res.json();
     if (data.ok) setOrders(data.items);
   };
@@ -20,7 +20,7 @@ export default function OrdersPage() {
   const markAsPacked = async (orderId) => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/orders/${orderId}/pack`,
+        `https://deepglam.onrender.com/api/orders/${orderId}/pack`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

@@ -12,7 +12,7 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/orders", {
+      const res = await fetch("https://deepglam.onrender.com/api/orders", {
         cache: "no-store",
       });
       const data = await res.json();

@@ -4,25 +4,29 @@ import { useRouter } from "next/navigation";
 import { login as apiLogin } from "@/services/authService";
 import { AuthContext } from "@/context/AuthContext";
 
+const HARDCODED_ADMIN = {
+  email: "admin@deepglam.com",
+  password: "admin@123",
+  profile: {
+    name: "Deepglam",
+    email: "admin@deepglam.com",
+    phone: "8318679438",
+    role: "admin",
+  },
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useContext(AuthContext);
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
+    setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError("");
   };
 
@@ -32,18 +36,34 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await apiLogin({ 
-        email: formData.email, 
-        password: formData.password 
+      // 🔑 1) Hardcoded Admin shortcut
+      if (
+        formData.email === HARDCODED_ADMIN.email &&
+        formData.password === HARDCODED_ADMIN.password
+      ) {
+        login({
+          token: "deepglam-admin-token",
+          user: HARDCODED_ADMIN.profile,
+          rememberDays: 7,
+        });
+        router.push("/dashboard");
+        return;
+      }
+
+      // 🔄 2) Otherwise, call API
+      const res = await apiLogin({
+        email: formData.email,
+        password: formData.password,
       });
-      
+
       if (res.ok) {
-        login({ token: res.data.token, user: res.data.user });
+        // Persist via AuthContext (writes cookie)
+        login({ token: res.data.token, user: res.data.user, rememberDays: 7 });
         router.push("/dashboard");
       } else {
         setError(res.error || "Invalid email or password");
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -51,9 +71,10 @@ export default function LoginPage() {
   };
 
   const handleSkip = () => {
-    login({ 
-      token: "dev-skip-token", 
-      user: { name: "Dev Admin", role: "superadmin" } 
+    login({
+      token: "dev-skip-token",
+      user: { name: "Dev Admin", role: "superadmin" },
+      rememberDays: 1,
     });
     router.push("/dashboard");
   };
@@ -189,7 +210,7 @@ export default function LoginPage() {
         </div>
 
         {/* Development Skip Button */}
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === "development" && (
           <div className="mt-4">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -211,9 +232,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-xs text-gray-500">
-            © 2024 DeepGlam. All rights reserved.
-          </p>
+          <p className="text-xs text-gray-500">© 2024 DeepGlam. All rights reserved.</p>
         </div>
       </div>
     </div>

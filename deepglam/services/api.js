@@ -1,19 +1,21 @@
 // services/api.js
 import axios from "axios";
 
-export const BASE_URL ="https://deepglam.onrender.com/api";
+/** Use same base as the app */
+export const BASE_URL = "https://deepglam.onrender.com/api"; 
 
+/** Single axios instance */
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
 });
 
-// helper: decide whether to attach token
+/* ---------------- Helpers ---------------- */
 const isOurApi = (url) => {
   if (!url) return false;
-  if (url.startsWith("/")) return true;
+  if (typeof url === "string" && url.startsWith("/")) return true;
   try {
-    const u = new URL(url);
+    const u = new URL(url, BASE_URL);
     const b = new URL(BASE_URL);
     return u.origin === b.origin;
   } catch {
@@ -21,42 +23,77 @@ const isOurApi = (url) => {
   }
 };
 
-// REQUEST
+const getPathname = (url) => {
+  try {
+    return new URL(url, BASE_URL).pathname || "";
+  } catch {
+    return (url || "").toString();
+  }
+};
+
+/** Normalize “/api/products” → “/products” for route checks */
+const stripApiBase = (p) => p.replace(/^\/api\/?/, "/");
+
+/* --------------- REQUEST Interceptor --------------- */
 api.interceptors.request.use(
   (config) => {
     const isFormData =
       config.data instanceof FormData ||
       (config.headers &&
-        config.headers["Content-Type"]?.includes("multipart/form-data"));
+        String(config.headers["Content-Type"] || "").includes("multipart/form-data"));
 
+    // Default headers for JSON
     if (!isFormData) {
       config.headers["Accept"] = config.headers["Accept"] || "application/json";
-      config.headers["Content-Type"] =
-        config.headers["Content-Type"] || "application/json";
+      config.headers["Content-Type"] = config.headers["Content-Type"] || "application/json";
     }
 
-    // attach token (client-side)
     if (isOurApi(config.url)) {
+      // 🔐 Attach JWT (same keys as app)
       try {
-        const t =
-          typeof window !== "undefined"
-            ? localStorage.getItem("userToken")
-            : null;
+        const t = typeof window !== "undefined" ? localStorage.getItem("userToken") : null;
         if (t) config.headers.Authorization = `Bearer ${t}`;
         else delete config.headers.Authorization;
-      } catch {}
+      } catch {
+        delete config.headers.Authorization;
+      }
+
+      // 🔹 Optional parity with app: pass sellerId header if present
+      try {
+        const sellerId = typeof window !== "undefined" ? localStorage.getItem("sellerId") : null;
+        if (sellerId) config.headers["x-seller-id"] = sellerId;
+
+        // Auto-inject sellerId into product write bodies (harmless if backend ignores it)
+        const method = (config.method || "get").toLowerCase();
+        const path = stripApiBase(getPathname(config.url));
+        const isProductsRoute = path.startsWith("/products");
+
+        if (
+          sellerId &&
+          isProductsRoute &&
+          ["post", "put", "patch"].includes(method) &&
+          !isFormData &&
+          config.data &&
+          typeof config.data === "object" &&
+          !("sellerId" in config.data)
+        ) {
+          config.data = { ...config.data, sellerId };
+        }
+      } catch {
+        // ignore
+      }
     } else {
+      // External calls (e.g., Cloudinary) → strip auth/seller headers
       if (config.headers?.Authorization) delete config.headers.Authorization;
+      if (config.headers?.["x-seller-id"]) delete config.headers["x-seller-id"];
     }
 
-    // debug (optional)
-    // console.log("[API] →", (config.baseURL || "") + (config.url || ""));
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// RESPONSE
+/* --------------- RESPONSE Interceptor --------------- */
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
@@ -64,17 +101,23 @@ api.interceptors.response.use(
     const reqUrl = err.config?.url;
 
     if (status === 401 && isOurApi(reqUrl)) {
+      // Token expired/invalid → clear and redirect to login
       console.log("❌ 401 Unauthorized → clearing session");
       try {
-        localStorage.removeItem("userToken");
-        localStorage.removeItem("user");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("userToken");
+          localStorage.removeItem("sellerId");
+          localStorage.removeItem("role");
+          localStorage.removeItem("user");
+          window.location.replace("/login");
+        }
       } catch {}
-      if (typeof window !== "undefined") window.location.href = "/login";
     }
     return Promise.reject(err);
   }
 );
 
+/* --------------- Error Helper --------------- */
 export const parseError = (e) =>
   e?.response?.data?.message ||
   e?.response?.data?.error ||

@@ -92,7 +92,7 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/orders");
+      const res = await fetch("https://deepglam.onrender.com/api/orders");
       const data = await res.json();
       if (data && Array.isArray(data)) setOrders(data);
       else if (data.items) setOrders(data.items);

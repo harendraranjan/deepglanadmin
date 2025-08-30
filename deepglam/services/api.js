@@ -1,15 +1,14 @@
 // services/api.js
 import axios from "axios";
 
-// ✅ Base URL from .env.local
-export const BASE_URL = "https://deepglam.onrender.com/api";
+export const BASE_URL ="https://deepglam.onrender.com/api";
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
 });
 
-// Helper: check if request is to our backend
+// helper: decide whether to attach token
 const isOurApi = (url) => {
   if (!url) return false;
   if (url.startsWith("/")) return true;
@@ -22,7 +21,7 @@ const isOurApi = (url) => {
   }
 };
 
-// REQUEST interceptor
+// REQUEST
 api.interceptors.request.use(
   (config) => {
     const isFormData =
@@ -36,24 +35,28 @@ api.interceptors.request.use(
         config.headers["Content-Type"] || "application/json";
     }
 
+    // attach token (client-side)
     if (isOurApi(config.url)) {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("userToken")
-          : null;
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      try {
+        const t =
+          typeof window !== "undefined"
+            ? localStorage.getItem("userToken")
+            : null;
+        if (t) config.headers.Authorization = `Bearer ${t}`;
+        else delete config.headers.Authorization;
+      } catch {}
     } else {
       if (config.headers?.Authorization) delete config.headers.Authorization;
     }
 
+    // debug (optional)
+    // console.log("[API] →", (config.baseURL || "") + (config.url || ""));
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// RESPONSE interceptor
+// RESPONSE
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
@@ -61,19 +64,17 @@ api.interceptors.response.use(
     const reqUrl = err.config?.url;
 
     if (status === 401 && isOurApi(reqUrl)) {
-      console.log("❌ Unauthorized. Clearing session...");
-      localStorage.clear();
-
-      // ✅ Use browser redirect (safe in client)
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
+      console.log("❌ 401 Unauthorized → clearing session");
+      try {
+        localStorage.removeItem("userToken");
+        localStorage.removeItem("user");
+      } catch {}
+      if (typeof window !== "undefined") window.location.href = "/login";
     }
     return Promise.reject(err);
   }
 );
 
-// Unified error parser
 export const parseError = (e) =>
   e?.response?.data?.message ||
   e?.response?.data?.error ||

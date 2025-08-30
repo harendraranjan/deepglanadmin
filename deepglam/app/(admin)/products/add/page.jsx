@@ -44,6 +44,7 @@ export default function AddProductPage() {
     margin: "",
     mrp: "",
     discountPercentage: "",
+    discountAmount: "", // Added this field like mobile version
     gstPercentage: "",
     gstType: "exclusive",
     stock: "",
@@ -58,7 +59,7 @@ export default function AddProductPage() {
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Images
+  // Images - Fixed structure
   const [mainImageFile, setMainImageFile] = useState(null);
   const [mainPreview, setMainPreview] = useState("");
   const [galleryFiles, setGalleryFiles] = useState([]);
@@ -79,52 +80,104 @@ export default function AddProductPage() {
   const onPickMain = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    
+    // Revoke previous URL to prevent memory leak
+    if (mainPreview) URL.revokeObjectURL(mainPreview);
+    
     setMainImageFile(f);
     setMainPreview(URL.createObjectURL(f));
   };
 
+  // FIXED: Multiple image selection
   const onPickGallery = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    const merged = [...galleryFiles, ...files].slice(0, 10);
-    setGalleryFiles(merged);
-    setGalleryPreviews(merged.map((f) => URL.createObjectURL(f)));
+    const newFiles = Array.from(e.target.files || []);
+    if (!newFiles.length) return;
+
+    // Revoke previous URLs to prevent memory leak
+    galleryPreviews.forEach(url => URL.revokeObjectURL(url));
+
+    // Merge with existing files, limit to 10 total
+    const allFiles = [...galleryFiles, ...newFiles];
+    const limitedFiles = allFiles.slice(0, 10);
+    
+    // Create new preview URLs
+    const newPreviews = limitedFiles.map((f) => URL.createObjectURL(f));
+    
+    setGalleryFiles(limitedFiles);
+    setGalleryPreviews(newPreviews);
+    
+    // Reset the input to allow selecting the same files again if needed
+    e.target.value = '';
   };
 
   const removeGalleryAt = (idx) => {
-    const nf = [...galleryFiles]; nf.splice(idx, 1); setGalleryFiles(nf);
-    const np = [...galleryPreviews]; np.splice(idx, 1); setGalleryPreviews(np);
+    // Revoke the URL being removed
+    if (galleryPreviews[idx]) {
+      URL.revokeObjectURL(galleryPreviews[idx]);
+    }
+    
+    const newFiles = [...galleryFiles];
+    const newPreviews = [...galleryPreviews];
+    
+    newFiles.splice(idx, 1);
+    newPreviews.splice(idx, 1);
+    
+    setGalleryFiles(newFiles);
+    setGalleryPreviews(newPreviews);
   };
+
+  // Clean up URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (mainPreview) URL.revokeObjectURL(mainPreview);
+      galleryPreviews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
-  // (Optional) live math like app – not required, but handy
+  // Fixed price calculation to match mobile version exactly
   const pricePreview = useMemo(() => {
     const price = Number(form.purchasePrice || 0);
     const marginPct = Number(form.margin || 0);
-    const base = price + (marginPct / 100) * price;
-
+    const basePrice = price + (marginPct / 100) * price;
+    
     const discPct = Number(form.discountPercentage || 0);
-    const afterDisc = discPct ? base - (base * discPct) / 100 : base;
-
+    const discAmtPref = form.discountAmount ? Number(form.discountAmount) : 0;
+    const priceAfterDiscount = basePrice - (discPct ? (basePrice * discPct) / 100 : discAmtPref);
+    
     const gstPct = Number(form.gstPercentage || 0);
-    const gst = form.gstType === "inclusive"
-      ? afterDisc - afterDisc / (1 + gstPct / 100)
-      : (afterDisc * gstPct) / 100;
+    const gstAmt = form.gstType === 'inclusive'
+      ? priceAfterDiscount - (priceAfterDiscount / (1 + gstPct / 100))
+      : (priceAfterDiscount * gstPct) / 100;
+    const finalPrice = form.gstType === 'inclusive'
+      ? priceAfterDiscount
+      : priceAfterDiscount + gstAmt;
 
-    const final = form.gstType === "inclusive" ? afterDisc : afterDisc + gst;
-    const moq = Number(form.MOQ || 0);
+    const moqNum = Number(form.MOQ || 0);
+    const baseTotal = basePrice * moqNum;
+    const afterDiscTotal = priceAfterDiscount * moqNum;
+    const gstAmtTotal = gstAmt * moqNum;
+    const finalTotal = finalPrice * moqNum;
+
     return {
-      base, afterDisc, gst, final,
-      baseTotal: base * moq,
-      afterDiscTotal: afterDisc * moq,
-      gstAmtTotal: gst * moq,
-      finalTotal: final * moq,
-      moq,
+      base: basePrice,
+      afterDisc: priceAfterDiscount,
+      gst: gstAmt,
+      final: finalPrice,
+      baseTotal,
+      afterDiscTotal,
+      gstAmtTotal,
+      finalTotal,
+      moq: moqNum,
     };
-  }, [form.purchasePrice, form.margin, form.discountPercentage, form.gstPercentage, form.gstType, form.MOQ]);
+  }, [form.purchasePrice, form.margin, form.discountPercentage, form.discountAmount, form.gstPercentage, form.gstType, form.MOQ]);
 
   const resetForm = () => {
+    // Clean up URLs before reset
+    if (mainPreview) URL.revokeObjectURL(mainPreview);
+    galleryPreviews.forEach(url => URL.revokeObjectURL(url));
+
     setForm({
       productname: "",
       mainCategory: MAIN_CATEGORIES[0] || "",
@@ -135,6 +188,7 @@ export default function AddProductPage() {
       margin: "",
       mrp: "",
       discountPercentage: "",
+      discountAmount: "",
       gstPercentage: "",
       gstType: "exclusive",
       stock: "",
@@ -169,14 +223,17 @@ export default function AddProductPage() {
 
     setLoading(true);
     try {
-      // Upload images to Cloudinary unsigned
+      // Upload main image to Cloudinary
       const mainUrl = await uploadUnsigned(mainImageFile);
+      
+      // Upload gallery images to Cloudinary
       const galleryUrls = [];
-      for (const f of galleryFiles) {
-        galleryUrls.push(await uploadUnsigned(f));
+      for (const file of galleryFiles) {
+        const url = await uploadUnsigned(file);
+        galleryUrls.push(url);
       }
 
-      // Build payload (DeepGlam v2025-08 API)
+      // Build payload exactly like mobile version
       const sizesArr = (form.sizes || "").split(",").map(s => s.trim()).filter(Boolean);
       const colorsArr = (form.colors || "").split(",").map(s => s.trim()).filter(Boolean);
 
@@ -189,8 +246,8 @@ export default function AddProductPage() {
         MOQ: Number(form.MOQ || 0),
         purchasePrice: Number(form.purchasePrice || 0),
         margin: Number(form.margin || 0),
-        mrp: Number(form.mrp || 0),
         discountPercentage: Number(form.discountPercentage || 0),
+        discountAmount: Number(form.discountAmount || 0), // Added like mobile
         gstPercentage: Number(form.gstPercentage || 0),
         gstType: form.gstType,                   // "inclusive" | "exclusive"
         stock: Number(form.stock || 0),
@@ -200,7 +257,7 @@ export default function AddProductPage() {
         colors: colorsArr,
         description: form.description,
         mainImage: { url: mainUrl },             // backend expects object with url
-        images: galleryUrls.map(u => ({ url: u })),
+        images: galleryUrls.map(u => ({ url: u })), // array of {url} objects
       };
 
       const res = await createProduct(body);
@@ -209,6 +266,7 @@ export default function AddProductPage() {
       alert("✅ Product created successfully");
       resetForm();
     } catch (err) {
+      console.error("Product creation error:", err);
       alert(err?.message || "Failed to create product");
     } finally {
       setLoading(false);
@@ -327,6 +385,16 @@ export default function AddProductPage() {
           className="border p-2 rounded"
         />
 
+        {/* Discount Amount - Added like mobile version */}
+        <input
+          type="number"
+          name="discountAmount"
+          placeholder="Discount Amount (optional)"
+          value={form.discountAmount}
+          onChange={handleChange}
+          className="border p-2 rounded"
+        />
+
         {/* GST % */}
         <input
           type="number"
@@ -385,7 +453,17 @@ export default function AddProductPage() {
           ))}
         </select>
 
-        {/* Optional free text: sizes / colors / HSN */}
+        {/* HSN Code */}
+        <input
+          type="text"
+          name="hsnCode"
+          placeholder="HSN Code"
+          value={form.hsnCode}
+          onChange={handleChange}
+          className="border p-2 rounded"
+        />
+
+        {/* Optional free text: sizes / colors */}
         <input
           type="text"
           name="sizes"
@@ -402,14 +480,6 @@ export default function AddProductPage() {
           onChange={handleChange}
           className="border p-2 rounded col-span-full"
         />
-        <input
-          type="text"
-          name="hsnCode"
-          placeholder="HSN Code"
-          value={form.hsnCode}
-          onChange={handleChange}
-          className="border p-2 rounded col-span-full"
-        />
 
         {/* Description */}
         <textarea
@@ -421,16 +491,16 @@ export default function AddProductPage() {
           rows={3}
         />
 
-        {/* ===== Price Preview (optional, lightweight) ===== */}
-        <div className="col-span-full grid gap-2 bg-white border rounded p-3">
-          <div className="font-semibold">Per Unit</div>
+        {/* ===== Price Preview (matching mobile exactly) ===== */}
+        <div className="col-span-full grid gap-2 bg-gray-50 border rounded p-4">
+          <div className="font-semibold text-gray-700">Per Unit</div>
           <div className="flex flex-wrap gap-2 text-sm">
             <Chip label="Base" value={pricePreview.base} />
             <Chip label="After Disc." value={pricePreview.afterDisc} />
             <Chip label={form.gstType === "inclusive" ? "GST part" : "GST"} value={pricePreview.gst} />
             <Chip label="Final" value={pricePreview.final} strong />
           </div>
-          <div className="font-semibold mt-2">Totals @ MOQ ({pricePreview.moq || 0} units)</div>
+          <div className="font-semibold mt-3 text-gray-700">Total @ MOQ ({pricePreview.moq || 0} units)</div>
           <div className="flex flex-wrap gap-2 text-sm">
             <Chip label="Base×MOQ" value={pricePreview.baseTotal} />
             <Chip label="After Disc.×MOQ" value={pricePreview.afterDiscTotal} />
@@ -439,53 +509,100 @@ export default function AddProductPage() {
           </div>
         </div>
 
-        {/* ===== IMAGES (Collapsible at bottom) ===== */}
-        <details className="col-span-full bg-white border rounded-lg">
-          <summary className="list-none cursor-pointer select-none px-4 py-3 border-b flex items-center justify-between">
+        {/* ===== IMAGES (Enhanced) ===== */}
+        <details className="col-span-full bg-white border rounded-lg" open>
+          <summary className="list-none cursor-pointer select-none px-4 py-3 border-b flex items-center justify-between hover:bg-gray-50">
             <span className="font-semibold">Images</span>
-            <span className="text-sm text-gray-500">Click for add Image</span>
+            <span className="text-sm text-gray-500">
+              {galleryFiles.length > 0 ? `${galleryFiles.length}/10 selected` : "Click to add images"}
+            </span>
           </summary>
 
-          <div className="p-4 grid gap-4">
+          <div className="p-4 grid gap-6">
             {/* Main Image */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="font-semibold">Main Image</label>
-                <label className="inline-flex items-center gap-2 bg-gray-800 text-white text-sm px-3 py-1.5 rounded cursor-pointer">
-                  <span>Pick</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={onPickMain} />
+              <div className="flex items-center justify-between mb-3">
+                <label className="font-semibold text-gray-700">Main Image *</label>
+                <label className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded cursor-pointer transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Choose Image</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={onPickMain} 
+                  />
                 </label>
               </div>
-              <div className="border rounded p-2 min-h-[140px] flex items-center justify-center bg-white">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[200px] flex items-center justify-center bg-gray-50">
                 {mainPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mainPreview} alt="main" className="rounded w-full max-h-64 object-cover" />
+                  <div className="relative">
+                    <img 
+                      src={mainPreview} 
+                      alt="main preview" 
+                      className="rounded-lg max-h-48 object-cover shadow-sm" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        URL.revokeObjectURL(mainPreview);
+                        setMainImageFile(null);
+                        setMainPreview("");
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">Upload main image</p>
+                  <div className="text-center">
+                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-gray-500 text-sm">Upload main product image</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Gallery */}
+            {/* Gallery Images - FIXED */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="font-semibold">Gallery (max 10)</label>
-                <label className="inline-flex items-center gap-2 bg-gray-800 text-white text-sm px-3 py-1.5 rounded cursor-pointer">
-                  <span>Add</span>
-                  <input type="file" accept="image/*" multiple className="hidden" onChange={onPickGallery} />
+              <div className="flex items-center justify-between mb-3">
+                <label className="font-semibold text-gray-700">
+                  Gallery Images ({galleryFiles.length}/10)
+                </label>
+                <label className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-2 rounded cursor-pointer transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span>Add Images</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    className="hidden" 
+                    onChange={onPickGallery}
+                  />
                 </label>
               </div>
 
               {galleryPreviews?.length ? (
-                <div className="flex gap-2 overflow-x-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                   {galleryPreviews.map((src, i) => (
-                    <div key={`${src}-${i}`} className="relative w-24 h-24 border rounded overflow-hidden shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt={`g-${i}`} className="w-full h-full object-cover" />
+                    <div key={`gallery-${i}`} className="relative group">
+                      <div className="aspect-square border-2 border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <img 
+                          src={src} 
+                          alt={`gallery-${i}`} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeGalleryAt(i)}
-                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 shadow-sm"
                       >
                         ×
                       </button>
@@ -493,7 +610,13 @@ export default function AddProductPage() {
                   ))}
                 </div>
               ) : (
-                <div className="border rounded p-3 text-gray-500 text-sm">Add up to 10 images</div>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
+                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <p className="text-gray-500 text-sm">Add up to 10 gallery images</p>
+                  <p className="text-gray-400 text-xs mt-1">Select multiple files at once</p>
+                </div>
               )}
             </div>
           </div>
@@ -503,9 +626,16 @@ export default function AddProductPage() {
         <button
           type="submit"
           disabled={loading}
-          className="col-span-full bg-[#f26522] text-white py-2 rounded hover:opacity-90"
+          className="col-span-full bg-[#f26522] hover:bg-[#e55a1f] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-6 rounded-lg font-semibold transition-colors"
         >
-          {loading ? "Saving..." : "Add Product"}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Saving...</span>
+            </div>
+          ) : (
+            "Add Product"
+          )}
         </button>
       </form>
     </div>
@@ -517,12 +647,13 @@ function Chip({ label, value, strong }) {
   return (
     <div
       className={`rounded-md border px-3 py-2 ${
-        strong ? "bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold" : "bg-gray-50 border-gray-200 text-gray-800"
+        strong 
+          ? "bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold" 
+          : "bg-gray-50 border-gray-200 text-gray-800"
       }`}
-      style={{ fontSize: 13 }}
     >
-      <div className="text-xs text-gray-500">{label}</div>
-      <div>₹{Number(value || 0).toFixed(2)}</div>
+      <div className="text-xs text-gray-500 mb-1">{label}</div>
+      <div className="font-semibold">₹{Number(value || 0).toFixed(2)}</div>
     </div>
   );
 }

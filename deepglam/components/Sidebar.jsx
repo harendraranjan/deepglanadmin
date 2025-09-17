@@ -220,7 +220,7 @@ export default function Sidebar() {
                 { href: "/users/sellers", label: "Sellers" },
                 { href: "/users/staff", label: "Staff" },
                 { href: "/users/staff/attendance", label: "Staff Attendance" },
-                { href: "/users/create", label: "Create User" },
+                { href: "/users/create", label: "Allstaff" },
                 { href: "/users/permissions", label: "Permissions" },
                 { href: "/users/vendor-report", label: "Vendor Report" },
                 { href: "/users/buyer-report", label: "Buyer Report" },

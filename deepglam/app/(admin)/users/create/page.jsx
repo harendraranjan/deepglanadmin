@@ -1,91 +1,157 @@
+
 "use client";
-import { useState } from "react";
-import { createUser } from "@/services/userService";
+import { useEffect, useState } from "react";
 
-export default function CreateUserPage() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "staff", // default
+export default function StaffListPage() {
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/staff");
+        const json = await res.json();
+        if (json.ok && json.data?.items) {
+          setStaff(json.data.items);
+        } else {
+          setStaff([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch staff:", err);
+        setStaff([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStaff();
+  }, []);
+
+  const filteredStaff = staff.filter((member) => {
+    const matchSearch =
+      member.name.toLowerCase().includes(search.toLowerCase()) ||
+      member.phone.toLowerCase().includes(search.toLowerCase()) ||
+      (member.email?.toLowerCase() || "").includes(search.toLowerCase());
+    const matchStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "active"
+        ? member.isActive
+        : !member.isActive;
+    return matchSearch && matchStatus;
   });
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const res = await createUser(form);
-    if (res.ok) {
-      alert("✅ User created successfully");
-      setForm({ name: "", email: "", password: "", role: "staff" });
-    } else {
-      alert(res.error || "Failed to create user");
-    }
-    setLoading(false);
-  };
+  if (loading) return <p className="p-6 text-black">Loading staff...</p>;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Create User</h1>
+    <div className="p-6 bg-gray-100 min-h-screen text-black">
+      <h1 className="text-3xl font-bold mb-6">👨‍💼 Staff Directory</h1>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow p-6 rounded grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl"
-      >
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
         <input
           type="text"
-          name="name"
-          placeholder="Full Name"
-          value={form.name}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="email"
-          name="email"
-          placeholder="Email Address"
-          value={form.email}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
+          placeholder="🔍 Search by name, phone, email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border border-gray-300 bg-white rounded px-4 py-2 flex-1 text-black"
         />
         <select
-          name="role"
-          value={form.role}
-          onChange={handleChange}
-          className="border p-2 rounded"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border border-gray-300 bg-white rounded px-4 py-2 text-black"
         >
-          <option value="superadmin">Super Admin</option>
-          <option value="salesmanager">Sales Manager</option>
-          <option value="accountant">Accountant</option>
-          <option value="deliverymanager">Delivery Manager</option>
-          <option value="staff">Staff</option>
+          <option value="all">All</option>
+          <option value="active">Active Only</option>
+          <option value="inactive">Inactive Only</option>
         </select>
+      </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="col-span-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600"
-        >
-          {loading ? "Creating..." : "Create User"}
-        </button>
-      </form>
+      {/* Staff Table */}
+      <div className="overflow-x-auto rounded-lg border border-gray-300 bg-white shadow-md">
+        <table className="w-full border-collapse">
+          <thead className="bg-gray-200 text-black">
+            <tr>
+              <th className="border border-gray-300 p-3">Name</th>
+              <th className="border border-gray-300 p-3">Employee Code</th>
+              <th className="border border-gray-300 p-3">Phone</th>
+              <th className="border border-gray-300 p-3">Email</th>
+              <th className="border border-gray-300 p-3">Salary</th>
+              <th className="border border-gray-300 p-3">Allowance</th>
+              <th className="border border-gray-300 p-3">Target</th>
+              <th className="border border-gray-300 p-3">Address</th>
+              <th className="border border-gray-300 p-3">Bank Details</th>
+              <th className="border border-gray-300 p-3">Status</th>
+              <th className="border border-gray-300 p-3">Created At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredStaff.length > 0 ? (
+              filteredStaff.map((member) => (
+                <tr
+                  key={member._id}
+                  className="hover:bg-gray-100 transition-colors"
+                >
+                  <td className="border border-gray-300 p-3">{member.name}</td>
+                  <td className="border border-gray-300 p-3">
+                    {member.employeeCode}
+                  </td>
+                  <td className="border border-gray-300 p-3">{member.phone}</td>
+                  <td className="border border-gray-300 p-3">
+                    {member.email || member.userId?.email}
+                  </td>
+                  <td className="border border-gray-300 p-3">
+                    ₹{member.salary}
+                  </td>
+                  <td className="border border-gray-300 p-3">
+                    ₹{member.travelAllowance}
+                  </td>
+                  <td className="border border-gray-300 p-3">{member.target}</td>
+                  <td className="border border-gray-300 p-3 text-sm">
+                    {member.address?.line1 && <div>{member.address.line1},</div>}
+                    {member.address?.city && <div>{member.address.city},</div>}
+                    {member.address?.state && (
+                      <div>{member.address.state},</div>
+                    )}
+                    {member.address?.country}
+                  </td>
+                  <td className="border border-gray-300 p-3 text-sm">
+                    {member.bankDetails ? (
+                      <div>
+                        <div>AC: {member.bankDetails.accountNumber}</div>
+                        <div>IFSC: {member.bankDetails.ifscCode}</div>
+                        <div>Holder: {member.bankDetails.accountHolderName}</div>
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td
+                    className={`border border-gray-300 p-3 font-semibold ${
+                      member.isActive ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {member.isActive ? "Active" : "Inactive"}
+                  </td>
+                  <td className="border border-gray-300 p-3 text-xs text-gray-600">
+                    {new Date(member.createdAt).toLocaleString()}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="11"
+                  className="text-center p-6 text-gray-500 italic"
+                >
+                  No staff found 🚫
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

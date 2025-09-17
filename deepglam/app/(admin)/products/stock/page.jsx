@@ -168,6 +168,7 @@ export default function ProductStockPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const fetchProducts = async () => {
     try {
@@ -188,13 +189,11 @@ export default function ProductStockPage() {
   }, []);
 
   const getFilteredProducts = () => {
-    const lower = (s) => s?.toLowerCase();
+    const lower = (s) => s?.toLowerCase() || "";
     return products.filter((p) => {
       const matchesStatus =
         filter === "all" || lower(p.status) === filter.toLowerCase();
-      const matchesSearch = p.productname
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      const matchesSearch = lower(p.productName).includes(lower(searchTerm));
       return matchesStatus && matchesSearch;
     });
   };
@@ -218,30 +217,6 @@ export default function ProductStockPage() {
         <span className={`${base} bg-yellow-100 text-yellow-800`}>Pending</span>
       );
     return <span className={`${base} bg-gray-200 text-gray-800`}>{status}</span>;
-  };
-
-  const downloadCSV = (data) => {
-    const replacer = (_, value) => (value === null ? "" : value);
-    const header = Object.keys(data[0]);
-    const csv = [
-      header.join(","),
-      ...data.map((row) =>
-        header
-          .map((fieldName) => JSON.stringify(row[fieldName], replacer))
-          .join(",")
-      ),
-    ].join("\r\n");
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "products.csv";
-    link.click();
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   if (loading)
@@ -283,89 +258,129 @@ export default function ProductStockPage() {
       {filteredProducts.length === 0 ? (
         <p className="text-orange-700 font-medium">No products found.</p>
       ) : (
-        <>
-          <div className="overflow-x-auto rounded-md border border-black mb-6">
-            <table className="min-w-full text-sm bg-white border-collapse border border-black">
-              <thead className="bg-orange-100 text-gray-800 text-xs font-semibold uppercase border border-black">
-                <tr>
-                  <th className="p-3 text-left border border-black">Image</th>
-                  <th className="p-3 text-left border border-black">Name</th>
-                  <th className="p-3 text-left border border-black">Brand</th>
-                  <th className="p-3 text-left border border-black">Category</th>
-                  <th className="p-3 text-left border border-black">Type</th>
-                  <th className="p-3 text-left border border-black">MRP</th>
-                  <th className="p-3 text-left border border-black">Final Price</th>
-                  <th className="p-3 text-left border border-black">Stock</th>
-                  <th className="p-3 text-left border border-black">Status</th>
-                  <th className="p-3 text-left border border-black">Sizes</th>
-                  <th className="p-3 text-left border border-black">Colors</th>
+        <div className="overflow-x-auto rounded-md border border-black mb-6">
+          <table className="min-w-full text-sm bg-white border-collapse border border-black">
+            <thead className="bg-orange-100 text-gray-800 text-xs font-semibold uppercase border border-black">
+              <tr>
+                <th className="p-3 text-left border border-black">Name</th>
+                <th className="p-3 text-left border border-black">Brand</th>
+                <th className="p-3 text-left border border-black">Category</th>
+                <th className="p-3 text-left border border-black">Type</th>
+                <th className="p-3 text-left border border-black">Price</th>
+                <th className="p-3 text-left border border-black">Status</th>
+                <th className="p-3 text-left border border-black">Action</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700">
+              {filteredProducts.map((p) => (
+                <tr key={p._id} className="border border-black hover:bg-orange-50">
+                  <td className="p-3 font-medium border border-black">
+                    {p.productName}
+                  </td>
+                  <td className="p-3 border border-black">{p.brand}</td>
+                  <td className="p-3 border border-black">
+                    {p.mainCategory} / {p.subCategory}
+                  </td>
+                  <td className="p-3 border border-black">{p.productType}</td>
+                  <td className="p-3 text-blue-600 font-semibold border border-black">
+                    ₹{p.salePrice}
+                  </td>
+                  <td className="p-3 border border-black">{getStatusBadge(p.status)}</td>
+                  <td className="p-3 border border-black">
+                    <button
+                      onClick={() => setSelectedProduct(p)}
+                      className="bg-orange-500 text-white px-3 py-1 rounded-md hover:bg-orange-600"
+                    >
+                      View
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="text-gray-700">
-                {filteredProducts.map((p) => (
-                  <tr
-                    key={p._id}
-                    className="border border-black hover:bg-orange-50"
-                  >
-                    <td className="p-3 border border-black">
-                      <img
-                        src={p.mainImage?.url}
-                        alt={p.productname}
-                        className="w-16 h-16 object-cover rounded border border-black"
-                      />
-                    </td>
-                    <td className="p-3 font-medium border border-black">
-                      {p.productname}
-                    </td>
-                    <td className="p-3 border border-black">{p.brand}</td>
-                    <td className="p-3 border border-black">
-                      {p.mainCategory} / {p.subCategory}
-                    </td>
-                    <td className="p-3 border border-black">{p.productType}</td>
-                    <td className="p-3 text-red-600 font-semibold border border-black">
-                      ₹{p.mrp}
-                    </td>
-                    <td className="p-3 text-blue-600 font-semibold border border-black">
-                      ₹{p.finalPrice}
-                    </td>
-                    <td className="p-3 font-medium border border-black">
-                      {p.stock <= 0 ? (
-                        <span className="text-red-600 font-bold">Out of Stock</span>
-                      ) : p.stock < 5 ? (
-                        <span className="text-yellow-600 font-semibold">
-                          {p.stock} (Low)
-                        </span>
-                      ) : (
-                        <span className="text-green-700">{p.stock}</span>
-                      )}
-                    </td>
-                    <td className="p-3 border border-black">
-                      {getStatusBadge(p.status)}
-                    </td>
-                    <td className="p-3 border border-black">{p.sizes?.join(", ")}</td>
-                    <td className="p-3 border border-black">{p.colors?.join(", ")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-          {/* Bottom Action Buttons */}
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => downloadCSV(filteredProducts)}
-              className="bg-orange-500 text-white px-5 py-2 rounded-md font-medium transition hover:bg-orange-600"
-            >
-              Download CSV
-            </button>
-            <button
-              onClick={handlePrint}
-              className="bg-orange-500 text-white px-5 py-2 rounded-md font-medium transition hover:bg-orange-600"
-            >
-              Print Table
-            </button>
+      {/* Modal for product details */}
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-black w-11/12 md:w-2/3 lg:w-1/2 max-h-[90vh] overflow-y-auto rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-4">{selectedProduct.productName}</h2>
+
+            {/* Images */}
+            <div className="flex flex-wrap gap-4 mb-4">
+              <img
+                src={selectedProduct.mainImage?.url}
+                alt="Main"
+                className="w-32 h-32 object-cover rounded border cursor-pointer"
+                onClick={() => window.open(selectedProduct.mainImage?.url, "_blank")}
+              />
+              {selectedProduct.images?.map((img) => (
+                <img
+                  key={img._id}
+                  src={img.url}
+                  alt="Product"
+                  className="w-32 h-32 object-cover rounded border cursor-pointer"
+                  onClick={() => window.open(img.url, "_blank")}
+                />
+              ))}
+            </div>
+
+            {/* Info */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <p><b>Brand:</b> {selectedProduct.brand}</p>
+              <p><b>Category:</b> {selectedProduct.mainCategory} / {selectedProduct.subCategory}</p>
+              <p><b>Type:</b> {selectedProduct.productType}</p>
+              <p><b>HSN Code:</b> {selectedProduct.hsnCode}</p>
+              <p><b>Price:</b> ₹{selectedProduct.price}</p>
+              <p><b>Sale Price:</b> ₹{selectedProduct.salePrice}</p>
+              <p><b>Status:</b> {selectedProduct.status}</p>
+              <p><b>MOQ:</b> {selectedProduct.MOQ}</p>
+              <p><b>GST:</b> {selectedProduct.gstPercentage}% ({selectedProduct.gstType})</p>
+              <p><b>Seller:</b> {selectedProduct.userId?.name} ({selectedProduct.userId?.email})</p>
+            </div>
+
+            {/* Variations */}
+            {selectedProduct.variations?.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-semibold mb-2">Variations</h3>
+                <table className="w-full border border-gray-300 text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="p-2 border">Size</th>
+                      <th className="p-2 border">Color</th>
+                      <th className="p-2 border">Pieces</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedProduct.variations.map((v, i) => (
+                      <tr key={i}>
+                        <td className="p-2 border">{v.size}</td>
+                        <td className="p-2 border">{v.color}</td>
+                        <td className="p-2 border">{v.pieces || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Description */}
+            <div className="mt-4">
+              <h3 className="font-semibold mb-2">Description</h3>
+              <p className="text-gray-700">{selectedProduct.productDescription}</p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

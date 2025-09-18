@@ -67,21 +67,21 @@ export default function Sidebar() {
           {openGroup === "master" && (
             <div className="ml-12 mr-3 space-y-1 mb-3 animate-fadeIn">
               {[
-                { href: "/master/banner", label: "Banners" },
-                { href: "/master/categories", label: "Categories" },
-                { href: "/master/subcategories", label: "Sub Categories" },
-                { href: "/master/sizes", label: "Sizes" },
-                { href: "/master/colors", label: "Colors" },
-                { href: "/master/coupons", label: "Coupons" },
-                { href: "/master/hsn", label: "HSN Codes" },
-                { href: "/master/profit", label: "Profit %" },
-                { href: "/master/location", label: "Locations" },
-                { href: "/master/country", label: "Country" },
-                { href: "/master/state", label: "State" },
-                { href: "/master/city", label: "City" },
-                { href: "/master/brand", label: "Brand" },
-                { href: "/master/blog", label: "Blog" },
-                { href: "/master/document-type", label: "Document Types" },
+                // { href: "/master/banner", label: "Banners" },
+                // { href: "/master/categories", label: "Categories" },
+                // { href: "/master/subcategories", label: "Sub Categories" },
+                // { href: "/master/sizes", label: "Sizes" },
+                // { href: "/master/colors", label: "Colors" },
+                // { href: "/master/coupons", label: "Coupons" },
+                // { href: "/master/hsn", label: "HSN Codes" },
+                // { href: "/master/profit", label: "Profit %" },
+                // { href: "/master/location", label: "Locations" },
+                // { href: "/master/country", label: "Country" },
+                // { href: "/master/state", label: "State" },
+                // { href: "/master/city", label: "City" },
+                // { href: "/master/brand", label: "Brand" },
+                // { href: "/master/blog", label: "Blog" },
+                // { href: "/master/document-type", label: "Document Types" },
               ].map((item) => (
                 <Link
                   key={item.href}
@@ -122,7 +122,7 @@ export default function Sidebar() {
           {openGroup === "product" && (
             <div className="ml-12 mr-3 space-y-1 mb-3 animate-fadeIn">
               {[
-                { href: "/products/add-type", label: "Add Product Type" },
+               // { href: "/products/add-type", label: "Add Product Type" },
                 { href: "/products/add", label: "Add Product" },
                // { href: "/products/list", label: "Product List" },
                 { href: "/products/stock", label: "Product Stock" },
@@ -170,11 +170,11 @@ export default function Sidebar() {
                 { href: "/orders/list", label: "All Orders" },
                 //{ href: "/orders/billing", label: "Delivered Orders" },
                 //{ href: "/orders/canceled", label: "Canceled Orders" },
-                { href: "/orders/returns", label: "Return Orders" },
-                { href: "/orders/reject-report", label: "Cancel Order" },
-                { href: "/orders/reports", label: "Delivered Order" },
-                 { href: "/orders/Placed", label: " Placed Order " },
-                  { href: "/orders/Bill", label: " Bill Order " },
+                //{ href: "/orders/returns", label: "Return Orders" },
+                //{ href: "/orders/reject-report", label: "Cancel Order" },
+               // { href: "/orders/reports", label: "Delivered Order" },
+                // { href: "/orders/Placed", label: " Placed Order " },
+                 // { href: "/orders/Bill", label: " Bill Order " },
                   
               ].map((item) => (
                 <Link
@@ -218,13 +218,13 @@ export default function Sidebar() {
               {[
                 { href: "/users/buyers", label: "Buyers" },
                 { href: "/users/sellers", label: "Sellers" },
-                { href: "/users/staff", label: "Staff" },
-                { href: "/users/staff/attendance", label: "Staff Attendance" },
-                { href: "/users/create", label: "Create User" },
-                { href: "/users/permissions", label: "Permissions" },
-                { href: "/users/vendor-report", label: "Vendor Report" },
-                { href: "/users/buyer-report", label: "Buyer Report" },
-                { href: "/users/contact-report", label: "Contact Report" },
+               // { href: "/users/staff", label: "Staff" },
+               // { href: "/users/staff/attendance", label: "Staff Attendance" },
+                { href: "/users/create", label: "Allstaff" },
+                //{ href: "/users/permissions", label: "Permissions" },
+               // { href: "/users/vendor-report", label: "Vendor Report" },
+               // { href: "/users/buyer-report", label: "Buyer Report" },
+               // { href: "/users/contact-report", label: "Contact Report" },
               ].map((item) => (
                 <Link
                   key={item.href}

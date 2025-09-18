@@ -1,198 +1,166 @@
-// services/productService.js
 import api from "./api";
 
-/** Reuse the same error normalizer style as authService */
-const parseError = (err) =>
-  err?.response?.data?.message ||
-  err?.response?.data?.error ||
-  err?.message ||
+const parseError = (e) =>
+  e?.response?.data?.message ||
+  e?.response?.data?.error ||
+  e?.message ||
   "Something went wrong";
 
-/* ------------------------------------------------------------------ */
-/*                            PUBLIC API                               */
-/*  Matches your server/routes/product.routes.js endpoints:             */
-/*   POST   /products                         -> createProduct          */
-/*   GET    /products/disapproved             -> getDisapproved         */
-/*   PUT    /products/:id                     -> updateProduct          */
-/*   DELETE /products/:id                     -> deleteProduct          */
-/*   GET    /products                         -> list (with filters)    */
-/*   GET    /products/:id                     -> getById                */
-/*   PUT    /products/approve/:id             -> approve                */
-/*   POST   /products/clone/:id               -> clone                  */
-/* ------------------------------------------------------------------ */
-
-/** Create product (JSON payload). Use this when you're not uploading files. */
-export const createProduct = async (payload) => {
+/* ---------- PUBLIC ROUTES ---------- */
+export const getAllProducts = async (params = {}) => {
   try {
-    const { data } = await api.post("/products", payload);
+    // console.log("Fetching products with params:", params); // Debug log
+    const { data } = await api.get("/products", { params });
+    // console.log("Products response:", data); // Debug log
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("getAllProducts error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/**
- * Create product with images (multipart form-data).
- * Pass either:
- *  - files: array of { uri, name, type } or an array of File/Blob (on web)
- *  - fields: object with the rest of your product fields
- * Example:
- *  await createProductMultipart({
- *     fields: { productname: 'Shirt', gender: 'men', ... },
- *     files: [{ uri, name: 'img1.jpg', type: 'image/jpeg' }]
- *  })
- */
-export const createProductMultipart = async ({ fields = {}, files = [] }) => {
+export const getProductById = async (id) => {
   try {
-    const form = new FormData();
-    Object.entries(fields).forEach(([k, v]) => {
-      if (Array.isArray(v)) {
-        v.forEach((item) => form.append(`${k}[]`, String(item)));
-      } else if (v !== undefined && v !== null) {
-        form.append(k, String(v));
-      }
-    });
-    files.forEach((file) => {
-      form.append("images", file); // backend: multer.array('images')
-    });
-
-    const { data } = await api.post("/products", form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const { data } = await api.get(`/products/${id}`);
+    console.log("Products response:", data);
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("getProductById error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/** Get products for logged-in seller/user */
+/* ---------- AUTHENTICATED ROUTES ---------- */
 export const getMyProducts = async (params = {}) => {
   try {
     const { data } = await api.get("/products/my", { params });
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("getMyProducts error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-
-/** Get only disapproved products */
-export const getDisapprovedProducts = async (params = {}) => {
+export const createProduct = async (payload) => {
   try {
-    const { data } = await api.get("/products/disapproved", { params });
+    const { data } = await api.post("/products", payload);
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("createProduct error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/** Update product (JSON) */
 export const updateProduct = async (id, payload) => {
   try {
     const { data } = await api.put(`/products/${id}`, payload);
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("updateProduct error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/** Delete product */
 export const deleteProduct = async (id) => {
   try {
     const { data } = await api.delete(`/products/${id}`);
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("deleteProduct error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/**
- * List products with optional filters/sorting/pagination.
- * Supported params (frontend side):
- *  - gender: 'men' | 'women' | 'all' (we omit when 'all')
- *  - colors: array or csv string
- *  - minPrice, maxPrice: numbers
- *  - search, sort, page, limit, seller, mainCategory, subCategory, productType
- *
- * Your backend controller should read these from req.query.
- */
-export const list = async (params = {}) => {
-  try {
-    const q = normalizeListParams(params);
-    const { data } = await api.get("/products", { params: q });
-    return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
-  }
-};
-
-/** Get single product by id */
-export const getById = async (id) => {
-  try {
-    const { data } = await api.get(`/products/${id}`);
-    return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
-  }
-};
-
-/** Approve product */
-export const approve = async (id) => {
+/* ---------- ADMIN ROUTES ---------- */
+export const approveProduct = async (id) => {
   try {
     const { data } = await api.put(`/products/approve/${id}`);
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("approveProduct error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/** Clone product */
-export const clone = async (id) => {
+export const rejectProduct = async (id) => {
+  try {
+    const { data } = await api.put(`/products/reject/${id}`);
+    return { ok: true, data };
+  } catch (e) {
+    console.error("rejectProduct error:", parseError(e));
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+export const cloneProduct = async (id) => {
   try {
     const { data } = await api.post(`/products/clone/${id}`);
     return { ok: true, data };
-  } catch (err) {
-    return { ok: false, error: parseError(err) };
+  } catch (e) {
+    console.error("cloneProduct error:", parseError(e));
+    return { ok: false, error: parseError(e) };
   }
 };
 
-/* ------------------------------------------------------------------ */
-/*                             HELPERS                                 */
-/* ------------------------------------------------------------------ */
+/* ---------- HELPER METHODS (for frontend compatibility) ---------- */
+// ✅ Add alias for your frontend code that might use 'list'
+export const list = getAllProducts;
 
-/** Make sure we send clean query to backend */
-function normalizeListParams(p) {
-  const out = { ...p };
-
-  // gender: omit 'all'
-  if (out.gender === "all") delete out.gender;
-
-  // colors: allow array or csv
-  if (Array.isArray(out.colors)) {
-    out.colors = out.colors.join(",");
+// ✅ Helper to get products with better filtering
+export const getProductsFiltered = async (filters = {}) => {
+  const params = {};
+  
+  // Handle gender filter
+  if (filters.gender && filters.gender !== "all") {
+    params.mainCategory = filters.gender === "women" ? "Women" : "Men";
   }
+  
+  // Handle price range
+  if (filters.minPrice) params.minPrice = filters.minPrice;
+  if (filters.maxPrice) params.maxPrice = filters.maxPrice;
+  
+  // Handle colors
+  if (filters.colors && filters.colors.length) {
+    params.colors = filters.colors.join(",");
+  }
+  
+  // Handle sorting
+  if (filters.sort) params.sort = filters.sort;
+  if (filters.limit) params.limit = filters.limit;
+  
+  return getAllProducts(params);
+};
 
-  // price ranges: keep only valid numbers
-  if (out.minPrice == null) delete out.minPrice;
-  if (out.maxPrice == null) delete out.maxPrice;
+// ✅ Get trending products (high sales)
+export const getTrendingProducts = async (limit = 8) => {
+  return getAllProducts({ sort: "-sold", limit });
+};
 
-  // empty strings → remove
-  Object.keys(out).forEach((k) => {
-    if (out[k] === "" || out[k] === undefined || out[k] === null) delete out[k];
-  });
+// ✅ Get latest products
+export const getLatestProducts = async (limit = 8) => {
+  return getAllProducts({ sort: "-createdAt", limit });
+};
 
-  return out;
-}
-
+/* ---------- DEFAULT EXPORT ---------- */
 export default {
+  // Public
+  getAllProducts,
+  getProductById,
+  list, // ✅ Alias for compatibility
+  
+  // Authenticated  
+  getMyProducts,
   createProduct,
-  createProductMultipart,
-  getDisapprovedProducts,
   updateProduct,
   deleteProduct,
-  getMyProducts,
-  list,
-  getById,
-  approve,
-  clone,
+  
+  // Admin
+  approveProduct,
+  rejectProduct,
+  cloneProduct,
+  
+  // ✅ Helper methods
+  getProductsFiltered,
+  getTrendingProducts,
+  getLatestProducts,
 };

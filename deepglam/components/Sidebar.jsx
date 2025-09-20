@@ -67,7 +67,7 @@ export default function Sidebar() {
           {openGroup === "master" && (
             <div className="ml-12 mr-3 space-y-1 mb-3 animate-fadeIn">
               {[
-                // { href: "/master/banner", label: "Banners" },
+                { href: "/master/banner", label: "Banners" },
                 // { href: "/master/categories", label: "Categories" },
                 // { href: "/master/subcategories", label: "Sub Categories" },
                 // { href: "/master/sizes", label: "Sizes" },

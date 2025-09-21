@@ -123,3 +123,192 @@
 //     </div>
 //   );
 // }
+"use client";
+
+import { useState } from "react";
+import { upsertLocation, getLocation } from "@/services/masterService";
+
+export default function LocationPage() {
+  const [form, setForm] = useState({ pincode: "", city: "", state: "" });
+  const [location, setLocation] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setLocation(null);
+
+    const res = await upsertLocation(form);
+    setLoading(false);
+
+    if (res.ok) setLocation(res.data);
+    else setError(res.error);
+  };
+
+  const handleSearch = async () => {
+    if (!form.pincode) return setError("Enter pincode first");
+    setLoading(true);
+    setError("");
+    setLocation(null);
+
+    const res = await getLocation(form.pincode);
+    setLoading(false);
+
+    if (res.ok) setLocation(res.data);
+    else setError(res.error);
+  };
+
+  // Inline styles
+  const containerStyle = {
+    maxWidth: "500px",
+    margin: "50px auto",
+    padding: "25px",
+    border: "1px solid #ddd",
+    borderRadius: "12px",
+    backgroundColor: "#fefefe",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    fontFamily: "Arial, sans-serif"
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "12px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "6px",
+    fontSize: "16px",
+    backgroundColor: "#f9f9ff",
+    transition: "border 0.3s",
+    color: "#333", // input text color
+  };
+
+  const inputFocusStyle = {
+    borderColor: "#6c63ff",
+    outline: "none",
+    boxShadow: "0 0 5px rgba(108, 99, 255, 0.5)"
+  };
+
+  const buttonStyle = {
+    width: "100%",
+    padding: "12px",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "16px",
+    cursor: "pointer",
+    marginBottom: "12px",
+    transition: "background-color 0.3s, transform 0.2s"
+  };
+
+  const saveButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: "#6c63ff",
+    color: "#fff"
+  };
+
+  const searchButtonStyle = {
+    ...buttonStyle,
+    backgroundColor: "#ff6584",
+    color: "#fff"
+  };
+
+  const resultStyle = {
+    padding: "18px",
+    borderRadius: "10px",
+    backgroundColor: "#f0f4ff",
+    border: "1px solid #cce0ff",
+    marginTop: "15px"
+  };
+
+  const errorStyle = {
+    color: "#ff4d4f",
+    marginTop: "10px",
+    textAlign: "center",
+    fontWeight: "bold"
+  };
+
+  return (
+    <div style={containerStyle}>
+      <h1 style={{ textAlign: "center", marginBottom: "25px", color: "#333" }}>
+        🌍 Location Management
+      </h1>
+
+      <form onSubmit={handleSave}>
+        <input
+          style={inputStyle}
+          placeholder="Pincode"
+          value={form.pincode}
+          onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+          required
+          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+          className="custom-input"
+        />
+        <input
+          style={inputStyle}
+          placeholder="City"
+          value={form.city}
+          onChange={(e) => setForm({ ...form, city: e.target.value })}
+          required
+          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+          className="custom-input"
+        />
+        <input
+          style={inputStyle}
+          placeholder="State"
+          value={form.state}
+          onChange={(e) => setForm({ ...form, state: e.target.value })}
+          required
+          onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+          onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+          className="custom-input"
+        />
+        <button
+          type="submit"
+          style={saveButtonStyle}
+          disabled={loading}
+          onMouseOver={e => e.target.style.backgroundColor = "#574bff"}
+          onMouseOut={e => e.target.style.backgroundColor = "#6c63ff"}
+          onMouseDown={e => e.target.style.transform = "scale(0.97)"}
+          onMouseUp={e => e.target.style.transform = "scale(1)"}
+        >
+          {loading ? "Saving..." : "Save / Update"}
+        </button>
+      </form>
+
+      <button
+        style={searchButtonStyle}
+        onClick={handleSearch}
+        disabled={loading}
+        onMouseOver={e => e.target.style.backgroundColor = "#ff4a6e"}
+        onMouseOut={e => e.target.style.backgroundColor = "#ff6584"}
+        onMouseDown={e => e.target.style.transform = "scale(0.97)"}
+        onMouseUp={e => e.target.style.transform = "scale(1)"}
+      >
+        {loading ? "Searching..." : "Get Location by Pincode"}
+      </button>
+
+      {error && <div style={errorStyle}>{error}</div>}
+
+      {location && (
+        <div style={resultStyle}>
+          <h3 style={{ marginBottom: "8px", color: "#333" }}>Location Details:</h3>
+          <p><strong>Country:</strong> {location.country || "India"}</p>
+          <p><strong>State:</strong> {location.state}</p>
+          <p><strong>City:</strong> {location.city}</p>
+          <p><strong>Pincode:</strong> {location.pincode}</p>
+        </div>
+      )}
+
+      {/* Dark placeholder color CSS */}
+      <style jsx>{`
+        .custom-input::placeholder {
+          color: #555;
+          opacity: 1;
+        }
+      `}</style>
+    </div>
+  );
+}

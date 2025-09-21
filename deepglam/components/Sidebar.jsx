@@ -67,7 +67,7 @@ export default function Sidebar() {
           {openGroup === "master" && (
             <div className="ml-12 mr-3 space-y-1 mb-3 animate-fadeIn">
               {[
-                { href: "/master/banner", label: "Banners" },
+               // { href: "/master/banner", label: "Banners" },
                 // { href: "/master/categories", label: "Categories" },
                 // { href: "/master/subcategories", label: "Sub Categories" },
                 // { href: "/master/sizes", label: "Sizes" },
@@ -75,7 +75,7 @@ export default function Sidebar() {
                 // { href: "/master/coupons", label: "Coupons" },
                 // { href: "/master/hsn", label: "HSN Codes" },
                 // { href: "/master/profit", label: "Profit %" },
-                // { href: "/master/location", label: "Locations" },
+                 { href: "/master/location", label: "Locations" },
                 // { href: "/master/country", label: "Country" },
                 // { href: "/master/state", label: "State" },
                 // { href: "/master/city", label: "City" },

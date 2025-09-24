@@ -148,7 +148,7 @@ export default function Dashboard() {
     { label: "Total Buyers", value: stats.buyers },
     { label: "Total Sellers", value: stats.sellers },
     { label: "Total Products", value: stats.products },
-    { label: "Total Staff", value: stats.staff },
+    { label: "Total Staffs", value: stats.staff },
   ];
 
   return (
@@ -168,3 +168,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

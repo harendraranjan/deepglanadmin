@@ -74,7 +74,7 @@ export default function Sidebar() {
                 // { href: "/master/colors", label: "Colors" },
                 // { href: "/master/coupons", label: "Coupons" },
                 // { href: "/master/hsn", label: "HSN Codes" },
-                // { href: "/master/profit", label: "Profit %" },
+               //  { href: "/master/profit", label: "Profit %" },
                  { href: "/master/location", label: "Locations" },
                 // { href: "/master/country", label: "Country" },
                 // { href: "/master/state", label: "State" },

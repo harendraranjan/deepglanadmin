@@ -1,47 +1,43 @@
 // services/staffService.js
 import api from "./api";
 
-const parseError = (err) =>
-  err?.response?.data?.message ||
-  err?.response?.data?.error ||
-  err?.message ||
-  String(err) ||
+const parseError = (e) =>
+  e?.response?.data?.message ||
+  e?.response?.data?.error ||
+  e?.message ||
   "Something went wrong";
 
 const ok = (data) => ({ ok: true, data });
-const fail = (error) => ({ ok: false, error });
+const fail = (e) => ({ ok: false, error: parseError(e) });
 
-/** ========= STAFF CRUD ========= */
+/* ========= STAFF CRUD ========= */
 export async function createStaff(body) {
   try {
     const { data } = await api.post("/staff", body);
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
-/** `list` used by admin UI; params can include page, q, etc. */
-export async function list(params = {}) {
+export async function getAllStaff({ page = 1, q = "" } = {}) {
   try {
-    const { data } = await api.get("/staff", { params });
+    const { data } = await api.get("/staff", { params: { page, q } });
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
-/** Alternative name kept (backwards compat) */
-export async function getAllStaff(params = {}) {
-  return list(params);
-}
+/* alias for compatibility (used as list in dashboard) */
+export const list = (params) => getAllStaff(params);
 
 export async function getStaffByCode(code) {
   try {
     const { data } = await api.get(`/staff/${encodeURIComponent(code)}`);
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
@@ -50,52 +46,58 @@ export async function updateStaff(id, body) {
     const { data } = await api.patch(`/staff/${id}`, body);
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
-/** ========= ATTENDANCE ========= */
+/* ========= ATTENDANCE ========= */
 export async function attendanceCheckIn() {
   try {
     const { data } = await api.post("/staff/attendance/check-in");
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
+
 export async function attendanceCheckOut() {
   try {
     const { data } = await api.post("/staff/attendance/check-out");
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
+
+/**
+ * getMyAttendance({ month })
+ * Expected response: { summary, logs }
+ */
 export async function getMyAttendance({ month } = {}) {
   try {
     const { data } = await api.get("/staff/attendance/me", { params: { month } });
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
-/** ========= BUYERS & ORDERS (staff-scoped endpoints) ========= */
-export async function getMyBuyers(params = {}) {
+/* ========= BUYERS & ORDERS ========= */
+export async function getMyBuyers({ page = 1, q = "" } = {}) {
   try {
-    const { data } = await api.get("/staff/my-buyers", { params });
+    const { data } = await api.get("/staff/my-buyers", { params: { page, q } });
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
-export async function getOrders(params = {}) {
+export async function getOrders({ page = 1, q = "", status } = {}) {
   try {
-    const { data } = await api.get("/staff/orders", { params });
+    const { data } = await api.get("/staff/orders", { params: { page, q, status } });
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
@@ -104,59 +106,67 @@ export async function getOrdersCount() {
     const { data } = await api.get("/staff/orders/count");
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
 export async function markReadyToDispatch({ id, courier, awb }) {
   try {
-    const { data } = await api.patch(`/staff/orders/${id}/ready-to-dispatch`, { courier, awb });
-    return ok(data);
-  } catch (e) {
-    return fail(parseError(e));
-  }
-}
-
-/** ========= PAYMENTS ========= */
-export async function getPaymentsPending(params = {}) {
-  try {
-    // normalize params: allow page, q, minDays, month
-    const p = { ...params };
-    if (p.minDays != null && p.minDays !== "") p.minDays = Number(p.minDays);
-    const { data } = await api.get("/staff/payments/pending", { params: p });
-    return ok(data);
-  } catch (e) {
-    return fail(parseError(e));
-  }
-}
-
-export async function collectPayment({ buyerId, amount, method, reference, note, date }) {
-  try {
-    const { data } = await api.post("/staff/payments/collect", {
-      buyerId, amount, method, reference, note, date,
+    const { data } = await api.patch(`/staff/orders/${id}/ready-to-dispatch`, {
+      courier,
+      awb,
     });
     return ok(data);
   } catch (e) {
-    return fail(parseError(e));
+    return fail(e);
   }
 }
 
-/** Placeholder - if backend exposes collected list later, replace this */
-export async function getPaymentsCollected(params = {}) {
+/* ========= PAYMENTS ========= */
+export async function getPaymentsPending({ page = 1, q = "", minDays, month } = {}) {
   try {
-    const { data } = await api.get("/staff/payments/collected", { params });
+    const params = { page, q, month };
+    if (minDays != null && minDays !== "") params.minDays = Number(minDays);
+    const { data } = await api.get("/staff/payments/pending", { params });
     return ok(data);
   } catch (e) {
-    // If endpoint doesn't exist, return an empty shape instead of throwing
-    return ok({ items: [], total: 0, hasMore: false });
+    return fail(e);
   }
 }
 
-/** ========= DEFAULT EXPORT (for convenience) ========= */
+export async function collectPayment({
+  buyerId,
+  amount,
+  method,
+  reference,
+  note,
+  date,
+}) {
+  try {
+    const { data } = await api.post("/staff/payments/collect", {
+      buyerId,
+      amount,
+      method,
+      reference,
+      note,
+      date,
+    });
+    return ok(data);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/* Optional: placeholder until backend route available */
+export async function getPaymentsCollected() {
+  return ok({ items: [], total: 0, hasMore: false });
+}
+
+/* ========= DEFAULT EXPORT ========= */
 export default {
   createStaff,
-  list,
   getAllStaff,
+  list,
   getStaffByCode,
   updateStaff,
   attendanceCheckIn,

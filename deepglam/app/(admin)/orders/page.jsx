@@ -1,14 +1,11 @@
-// app/(admin)/orders/page.jsx
 "use client";
-
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import orderService from "@/services/orderService";
 
 export default function OrdersPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrders, setSelectedOrders] = useState([]);
@@ -20,7 +17,7 @@ export default function OrdersPage() {
   });
 
   const [filters, setFilters] = useState({
-    status: searchParams.get("status") || "",
+    status: "",
     paymentStatus: "",
     dateFrom: "",
     dateTo: "",
@@ -35,6 +32,21 @@ export default function OrdersPage() {
     delivered: 0,
   });
 
+  // read any search params from URL once on mount (client-side)
+  useEffect(() => {
+    try {
+      const qs = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      if (qs) {
+        const status = qs.get("status") || "";
+        const search = qs.get("search") || "";
+        setFilters((prev) => ({ ...prev, status, search }));
+      }
+    } catch (e) {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -45,25 +57,21 @@ export default function OrdersPage() {
       };
 
       const response = await orderService.getMyOrders(params);
-      
+
       if (response.ok) {
-        const ordersData = response.data.orders || response.data || [];
+        const ordersData = response.data?.orders ?? response.data ?? [];
         setOrders(ordersData);
-        
-        if (response.data.pagination) {
-          setPagination(prev => ({
+
+        const paginationFromResp =
+          response.data?.pagination ?? response.pagination ?? null;
+        if (paginationFromResp) {
+          setPagination((prev) => ({
             ...prev,
-            total: response.data.pagination.total,
-            pages: response.data.pagination.pages,
-          }));
-        } else if (response.pagination) {
-          setPagination(prev => ({
-            ...prev,
-            total: response.pagination.total,
-            pages: response.pagination.pages,
+            total: paginationFromResp.total || prev.total,
+            pages: paginationFromResp.pages || prev.pages,
           }));
         }
-        
+
         calculateStats(ordersData);
       } else {
         console.error("Failed to fetch orders:", response.error);
@@ -90,7 +98,8 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [pagination.page]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page, filters]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -98,7 +107,17 @@ export default function OrdersPage() {
 
   const applyFilters = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
-    setTimeout(() => fetchOrders(), 0);
+    // update URL so user can share link (optional)
+    try {
+      const qs = new URLSearchParams(window.location.search);
+      if (filters.status) qs.set("status", filters.status); else qs.delete("status");
+      if (filters.search) qs.set("search", filters.search); else qs.delete("search");
+      const newUrl = `${window.location.pathname}?${qs.toString()}`;
+      window.history.replaceState({}, "", newUrl);
+    } catch (e) {
+      // ignore
+    }
+    fetchOrders();
   };
 
   const resetFilters = () => {
@@ -110,14 +129,19 @@ export default function OrdersPage() {
       search: "",
     });
     setPagination((prev) => ({ ...prev, page: 1 }));
-    setTimeout(() => fetchOrders(), 0);
+    try {
+      const qs = new URLSearchParams(window.location.search);
+      qs.delete("status");
+      qs.delete("search");
+      const newUrl = `${window.location.pathname}${qs.toString() ? "?" + qs.toString() : ""}`;
+      window.history.replaceState({}, "", newUrl);
+    } catch (e) {}
+    fetchOrders();
   };
 
   const handleSelectOrder = (orderId) => {
     setSelectedOrders((prev) =>
-      prev.includes(orderId)
-        ? prev.filter((id) => id !== orderId)
-        : [...prev, orderId]
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
     );
   };
 
@@ -129,28 +153,18 @@ export default function OrdersPage() {
     }
   };
 
-  // ✅ NEW: Handle bulk bill generation
- 
-// In app/(admin)/orders/page.jsx
-// Replace handleBulkBill completely:
-
-const handleBulkBill = () => {
-  if (selectedOrders.length === 0) {
-    alert("Please select orders to generate bills");
-    return;
-  }
-  
-  if (selectedOrders.length === 1) {
-    // Single order - use normal route
-    router.push(`/orders/${selectedOrders[0]}/bill`);
-  } else {
-    // Multiple orders - use query params with first ID
-    const allIds = selectedOrders.join(',');
-    router.push(`/orders/${selectedOrders[0]}/bill?ids=${allIds}`);
-  }
-};
-
-
+  const handleBulkBill = () => {
+    if (selectedOrders.length === 0) {
+      alert("Please select orders to generate bills");
+      return;
+    }
+    if (selectedOrders.length === 1) {
+      router.push(`/orders/${selectedOrders[0]}/bill`);
+    } else {
+      const allIds = selectedOrders.join(",");
+      router.push(`/orders/${selectedOrders[0]}/bill?ids=${allIds}`);
+    }
+  };
 
   const handleBulkDispatch = async () => {
     if (selectedOrders.length === 0) {
@@ -206,21 +220,11 @@ const handleBulkBill = () => {
   };
 
   const handlePreviousPage = () => {
-    if (pagination.page > 1) {
-      setPagination((prev) => ({ 
-        ...prev, 
-        page: prev.page - 1 
-      }));
-    }
+    if (pagination.page > 1) setPagination((prev) => ({ ...prev, page: prev.page - 1 }));
   };
 
   const handleNextPage = () => {
-    if (pagination.page < pagination.pages) {
-      setPagination((prev) => ({ 
-        ...prev, 
-        page: prev.page + 1 
-      }));
-    }
+    if (pagination.page < pagination.pages) setPagination((prev) => ({ ...prev, page: prev.page + 1 }));
   };
 
   const getStatusColor = (status) => {
@@ -250,17 +254,12 @@ const handleBulkBill = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Orders Management</h1>
-          <p className="text-gray-500 mt-1">
-            Manage and track all orders from admin panel
-          </p>
+          <p className="text-gray-500 mt-1">Manage and track all orders from admin panel</p>
         </div>
         <button
           onClick={fetchOrders}
           className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 font-medium"
         >
-          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
           Refresh
         </button>
       </div>
@@ -291,45 +290,40 @@ const handleBulkBill = () => {
 
       {/* Filters */}
       <div className="bg-white p-6 rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-          Filters
-        </h3>
-        
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">Filters</h3>
+
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
           <input
             type="text"
             placeholder="Search orders..."
             value={filters.search}
             onChange={(e) => handleFilterChange("search", e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white text-gray-900 placeholder:text-gray-400"
+            className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
           />
 
           <select
             value={filters.status}
             onChange={(e) => handleFilterChange("status", e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white text-gray-900"
+            className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
           >
-            <option value="" className="text-gray-500">All Status</option>
-            <option value="confirmed" className="text-gray-900">Confirmed</option>
-            <option value="processing" className="text-gray-900">Processing</option>
-            <option value="packed" className="text-gray-900">Packed</option>
-            <option value="shipped" className="text-gray-900">Shipped</option>
-            <option value="delivered" className="text-gray-900">Delivered</option>
-            <option value="cancelled" className="text-gray-900">Cancelled</option>
+            <option value="">All Status</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="processing">Processing</option>
+            <option value="packed">Packed</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           <select
             value={filters.paymentStatus}
             onChange={(e) => handleFilterChange("paymentStatus", e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white text-gray-900"
+            className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
           >
-            <option value="" className="text-gray-500">All Payments</option>
-            <option value="paid" className="text-gray-900">Paid</option>
-            <option value="partially_paid" className="text-gray-900">Partially Paid</option>
-            <option value="unpaid" className="text-gray-900">Unpaid</option>
+            <option value="">All Payments</option>
+            <option value="paid">Paid</option>
+            <option value="partially_paid">Partially Paid</option>
+            <option value="unpaid">Unpaid</option>
           </select>
 
           <input
@@ -337,7 +331,7 @@ const handleBulkBill = () => {
             placeholder="From Date"
             value={filters.dateFrom}
             onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white text-gray-900"
+            className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
           />
 
           <input
@@ -345,23 +339,13 @@ const handleBulkBill = () => {
             placeholder="To Date"
             value={filters.dateTo}
             onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white text-gray-900"
+            className="px-4 py-2 border border-gray-300 rounded-lg outline-none"
           />
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={applyFilters}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
-          >
-            Apply Filters
-          </button>
-          <button
-            onClick={resetFilters}
-            className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-          >
-            Reset
-          </button>
+          <button onClick={applyFilters} className="px-4 py-2 bg-orange-600 text-white rounded-lg">Apply Filters</button>
+          <button onClick={resetFilters} className="px-4 py-2 bg-white border rounded-lg">Reset</button>
         </div>
       </div>
 
@@ -369,42 +353,12 @@ const handleBulkBill = () => {
       {selectedOrders.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
           <div className="flex items-center justify-between">
-            <p className="font-medium text-blue-900">
-              {selectedOrders.length} orders selected
-            </p>
+            <p className="font-medium text-blue-900">{selectedOrders.length} orders selected</p>
             <div className="flex flex-wrap gap-2">
-              {/* ✅ NEW: Generate Bills Button */}
-              <button
-                onClick={handleBulkBill}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Generate Bills ({selectedOrders.length})
-              </button>
-
-              <button
-                onClick={() => handleBulkUpdate("processing")}
-                className="px-4 py-2 bg-white text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50 text-sm font-medium"
-              >
-                Mark Processing
-              </button>
-              <button
-                onClick={() => handleBulkUpdate("packed")}
-                className="px-4 py-2 bg-white text-purple-700 border border-purple-300 rounded-lg hover:bg-purple-50 text-sm font-medium"
-              >
-                Mark Packed
-              </button>
-              <button
-                onClick={handleBulkDispatch}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
-                Bulk Dispatch
-              </button>
+              <button onClick={handleBulkBill} className="px-4 py-2 bg-green-600 text-white rounded-lg">Generate Bills ({selectedOrders.length})</button>
+              <button onClick={() => handleBulkUpdate("processing")} className="px-4 py-2 border rounded-lg">Mark Processing</button>
+              <button onClick={() => handleBulkUpdate("packed")} className="px-4 py-2 border rounded-lg">Mark Packed</button>
+              <button onClick={handleBulkDispatch} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Bulk Dispatch</button>
             </div>
           </div>
         </div>
@@ -417,12 +371,7 @@ const handleBulkBill = () => {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedOrders.length === orders.length && orders.length > 0}
-                    onChange={handleSelectAll}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
+                  <input type="checkbox" checked={selectedOrders.length === orders.length && orders.length > 0} onChange={handleSelectAll} className="w-4 h-4" />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buyer</th>
@@ -437,72 +386,34 @@ const handleBulkBill = () => {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
-                    Loading orders...
-                  </td>
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">Loading orders...</td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
-                    No orders found
-                  </td>
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">No orders found</td>
                 </tr>
               ) : (
                 orders.map((order) => (
                   <tr key={order._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedOrders.includes(order._id)}
-                        onChange={() => handleSelectOrder(order._id)}
-                        className="w-4 h-4 rounded border-gray-300"
-                      />
+                      <input type="checkbox" checked={selectedOrders.includes(order._id)} onChange={() => handleSelectOrder(order._id)} className="w-4 h-4" />
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm text-gray-900">
-                      {order.orderNumber}
-                    </td>
+                    <td className="px-6 py-4 font-mono text-sm text-gray-900">{order.orderNumber}</td>
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-medium text-gray-900">{order.buyerUserId?.name || "N/A"}</p>
                         <p className="text-xs text-gray-500">{order.buyerUserId?.phone || ""}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {order.products?.length || 0} items
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-gray-900">
-                      ₹{((order.finalAmountPaise || 0) / 100).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPaymentColor(order.paymentStatus)}`}>
-                        {order.paymentStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{order.products?.length || 0} items</td>
+                    <td className="px-6 py-4 font-semibold text-gray-900">₹{(((order.finalAmountPaise || 0) / 100) || 0).toFixed(2)}</td>
+                    <td className="px-6 py-4"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>{order.status}</span></td>
+                    <td className="px-6 py-4"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getPaymentColor(order.paymentStatus)}`}>{order.paymentStatus}</span></td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ""}</td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => router.push(`/orders/${order._id}`)}
-                          className="text-orange-600 hover:text-orange-800 font-medium text-sm"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => router.push(`/orders/${order._id}/bill`)}
-                          className="text-green-600 hover:text-green-800 font-medium text-sm flex items-center gap-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Bill
-                        </button>
+                        <button onClick={() => router.push(`/orders/${order._id}`)} className="text-orange-600 hover:text-orange-800 font-medium text-sm">View</button>
+                        <button onClick={() => router.push(`/orders/${order._id}/bill`)} className="text-green-600 hover:text-green-800 font-medium text-sm">Bill</button>
                       </div>
                     </td>
                   </tr>
@@ -516,29 +427,13 @@ const handleBulkBill = () => {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Showing {Math.max(1, (pagination.page - 1) * pagination.limit + 1)} to{" "}
-          {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-          {pagination.total} orders
+          Showing {Math.max(1, (pagination.page - 1) * pagination.limit + 1)} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} orders
         </p>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">
-            Page {pagination.page} of {pagination.pages || 1}
-          </span>
+          <span className="text-sm text-gray-600">Page {pagination.page} of {pagination.pages || 1}</span>
           <div className="flex gap-2">
-            <button
-              onClick={handlePreviousPage}
-              disabled={pagination.page <= 1}
-              className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            >
-              Previous
-            </button>
-            <button
-              onClick={handleNextPage}
-              disabled={pagination.page >= (pagination.pages || 1)}
-              className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            >
-              Next
-            </button>
+            <button onClick={handlePreviousPage} disabled={pagination.page <= 1} className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg disabled:opacity-50">Previous</button>
+            <button onClick={handleNextPage} disabled={pagination.page >= (pagination.pages || 1)} className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg disabled:opacity-50">Next</button>
           </div>
         </div>
       </div>

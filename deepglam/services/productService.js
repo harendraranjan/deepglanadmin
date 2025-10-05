@@ -1,3 +1,4 @@
+// services/productService.js
 import api from "./api";
 
 const parseError = (e) =>
@@ -9,9 +10,7 @@ const parseError = (e) =>
 /* ---------- PUBLIC ROUTES ---------- */
 export const getAllProducts = async (params = {}) => {
   try {
-    // console.log("Fetching products with params:", params); // Debug log
     const { data } = await api.get("/products", { params });
-    // console.log("Products response:", data); // Debug log
     return { ok: true, data };
   } catch (e) {
     console.error("getAllProducts error:", parseError(e));
@@ -19,10 +18,12 @@ export const getAllProducts = async (params = {}) => {
   }
 };
 
+// ✅ Alias for compatibility (Dashboard, AddProductPage etc.)
+export const list = getAllProducts;
+
 export const getProductById = async (id) => {
   try {
     const { data } = await api.get(`/products/${id}`);
-    console.log("Products response:", data);
     return { ok: true, data };
   } catch (e) {
     console.error("getProductById error:", parseError(e));
@@ -30,7 +31,7 @@ export const getProductById = async (id) => {
   }
 };
 
-/* ---------- AUTHENTICATED ROUTES ---------- */
+/* ---------- AUTHENTICATED (SELLER) ROUTES ---------- */
 export const getMyProducts = async (params = {}) => {
   try {
     const { data } = await api.get("/products/my", { params });
@@ -72,9 +73,19 @@ export const deleteProduct = async (id) => {
 };
 
 /* ---------- ADMIN ROUTES ---------- */
+export const getDisapprovedProducts = async (params = {}) => {
+  try {
+    const { data } = await api.get("/products/disapproved", { params });
+    return { ok: true, data };
+  } catch (e) {
+    console.error("getDisapprovedProducts error:", parseError(e));
+    return { ok: false, error: parseError(e) };
+  }
+};
+
 export const approveProduct = async (id) => {
   try {
-    const { data } = await api.put(`/products/approve/${id}`);
+    const { data } = await api.patch(`/products/${id}/approve`);
     return { ok: true, data };
   } catch (e) {
     console.error("approveProduct error:", parseError(e));
@@ -82,9 +93,9 @@ export const approveProduct = async (id) => {
   }
 };
 
-export const rejectProduct = async (id) => {
+export const rejectProduct = async (id, reason = "") => {
   try {
-    const { data } = await api.put(`/products/reject/${id}`);
+    const { data } = await api.patch(`/products/${id}/reject`, { reason });
     return { ok: true, data };
   } catch (e) {
     console.error("rejectProduct error:", parseError(e));
@@ -94,7 +105,7 @@ export const rejectProduct = async (id) => {
 
 export const cloneProduct = async (id) => {
   try {
-    const { data } = await api.post(`/products/clone/${id}`);
+    const { data } = await api.post(`/products/${id}/clone`);
     return { ok: true, data };
   } catch (e) {
     console.error("cloneProduct error:", parseError(e));
@@ -102,41 +113,58 @@ export const cloneProduct = async (id) => {
   }
 };
 
-/* ---------- HELPER METHODS (for frontend compatibility) ---------- */
-// ✅ Add alias for your frontend code that might use 'list'
-export const list = getAllProducts;
+/* ---------- PRODUCT TYPES (Master setup) ---------- */
+export const getProductTypes = async () => {
+  try {
+    const { data } = await api.get("/products/types");
+    return { ok: true, data };
+  } catch (e) {
+    console.error("getProductTypes error:", parseError(e));
+    return { ok: false, error: parseError(e) };
+  }
+};
 
-// ✅ Helper to get products with better filtering
+export const createProductType = async (body) => {
+  try {
+    const { data } = await api.post("/products/types", body);
+    return { ok: true, data };
+  } catch (e) {
+    console.error("createProductType error:", parseError(e));
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+export const deleteProductType = async (id) => {
+  try {
+    const { data } = await api.delete(`/products/types/${id}`);
+    return { ok: true, data };
+  } catch (e) {
+    console.error("deleteProductType error:", parseError(e));
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/* ---------- HELPER METHODS ---------- */
 export const getProductsFiltered = async (filters = {}) => {
   const params = {};
-  
-  // Handle gender filter
+
   if (filters.gender && filters.gender !== "all") {
     params.mainCategory = filters.gender === "women" ? "Women" : "Men";
   }
-  
-  // Handle price range
+
   if (filters.minPrice) params.minPrice = filters.minPrice;
   if (filters.maxPrice) params.maxPrice = filters.maxPrice;
-  
-  // Handle colors
-  if (filters.colors && filters.colors.length) {
-    params.colors = filters.colors.join(",");
-  }
-  
-  // Handle sorting
+  if (filters.colors?.length) params.colors = filters.colors.join(",");
   if (filters.sort) params.sort = filters.sort;
   if (filters.limit) params.limit = filters.limit;
-  
+
   return getAllProducts(params);
 };
 
-// ✅ Get trending products (high sales)
 export const getTrendingProducts = async (limit = 8) => {
   return getAllProducts({ sort: "-sold", limit });
 };
 
-// ✅ Get latest products
 export const getLatestProducts = async (limit = 8) => {
   return getAllProducts({ sort: "-createdAt", limit });
 };
@@ -145,21 +173,27 @@ export const getLatestProducts = async (limit = 8) => {
 export default {
   // Public
   getAllProducts,
+  list,
   getProductById,
-  list, // ✅ Alias for compatibility
-  
-  // Authenticated  
+
+  // Seller
   getMyProducts,
   createProduct,
   updateProduct,
   deleteProduct,
-  
+
   // Admin
+  getDisapprovedProducts,
   approveProduct,
   rejectProduct,
   cloneProduct,
-  
-  // ✅ Helper methods
+
+  // Product types
+  getProductTypes,
+  createProductType,
+  deleteProductType,
+
+  // Helpers
   getProductsFiltered,
   getTrendingProducts,
   getLatestProducts,

@@ -1,3 +1,4 @@
+// services/sellerService.js
 import api from "./api";
 
 const parseError = (e) =>
@@ -7,7 +8,7 @@ const parseError = (e) =>
   "Something went wrong";
 
 /* ---------- SELLER REGISTRATION ---------- */
-export const create = async (payload) => {
+export const createSeller = async (payload) => {
   try {
     const { data } = await api.post("/sellers", payload);
     return { ok: true, data };
@@ -17,7 +18,12 @@ export const create = async (payload) => {
 };
 
 /* ---------- ADMIN MANAGEMENT ---------- */
-export const list = async (params = {}) => {
+/**
+ * getSellers(params)
+ * - params is optional object passed to query params (page, q, filters ...)
+ * - returns { ok: true, data } on success
+ */
+export const getSellers = async (params = {}) => {
   try {
     const { data } = await api.get("/sellers", { params });
     return { ok: true, data };
@@ -26,7 +32,10 @@ export const list = async (params = {}) => {
   }
 };
 
-export const getById = async (id) => {
+// keep `list` as alias for existing code that imports `list as getSellers`
+export const list = getSellers;
+
+export const getSellerById = async (id) => {
   try {
     const { data } = await api.get(`/sellers/${id}`);
     return { ok: true, data };
@@ -35,7 +44,7 @@ export const getById = async (id) => {
   }
 };
 
-export const getDisapproved = async (params = {}) => {
+export const getDisapprovedSellers = async (params = {}) => {
   try {
     const { data } = await api.get("/sellers/disapproved", { params });
     return { ok: true, data };
@@ -44,7 +53,7 @@ export const getDisapproved = async (params = {}) => {
   }
 };
 
-export const approve = async (sellerId) => {
+export const approveSeller = async (sellerId) => {
   try {
     const { data } = await api.patch(`/sellers/${sellerId}/approve`);
     return { ok: true, data };
@@ -53,7 +62,7 @@ export const approve = async (sellerId) => {
   }
 };
 
-export const reject = async (id, payload = {}) => {
+export const rejectSeller = async (id, payload = {}) => {
   try {
     const { data } = await api.patch(`/sellers/${id}/reject`, payload);
     return { ok: true, data };
@@ -72,18 +81,24 @@ export const getMyStats = async () => {
   }
 };
 
-/* ---------- DEFAULT EXPORT ---------- */
+/* ---------- DEFAULT EXPORT (backwards compat) ---------- */
 export default {
   // Registration
-  create,
-  
+  create: createSeller,
+  createSeller,
+
   // Admin Management
-  list,
-  getById,
-  getDisapproved,
-  approve,
-  reject,
-  
+  list: getSellers,
+  getSellers,
+  getById: getSellerById,
+  getSellerById,
+  getDisapproved: getDisapprovedSellers,
+  getDisapprovedSellers,
+  approve: approveSeller,
+  approveSeller,
+  reject: rejectSeller,
+  rejectSeller,
+
   // Seller Dashboard
   getMyStats,
 };

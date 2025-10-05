@@ -7,7 +7,14 @@ const parseError = (e) =>
   e?.message ||
   "Something went wrong";
 
-/** Public (as per routes): GET /users/:id */
+/* ================================
+   🧑‍💼 USER CRUD & PROFILE METHODS
+   ================================ */
+
+/** 
+ * Get User by ID
+ * GET /users/:id 
+ */
 export const getById = async (id) => {
   try {
     const { data } = await api.get(`/users/${id}`);
@@ -17,7 +24,24 @@ export const getById = async (id) => {
   }
 };
 
-/** PUT /users/:id (update profile) */
+/**
+ * Get Logged-in User Profile
+ * GET /users/profile
+ * (Fixes missing getProfile export)
+ */
+export const getProfile = async () => {
+  try {
+    const { data } = await api.get("/users/profile");
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/**
+ * Update User Profile
+ * PUT /users/:id
+ */
 export const updateProfile = async (id, payload) => {
   try {
     const { data } = await api.put(`/users/${id}`, payload);
@@ -27,7 +51,40 @@ export const updateProfile = async (id, payload) => {
   }
 };
 
-/** Admin: GET /users/staff/:code (buyers under staff code) */
+/* ================================
+   🧩 ADMIN & STAFF USER MANAGEMENT
+   ================================ */
+
+/**
+ * Get all users (Admin use)
+ * GET /users
+ */
+export const getAllUsers = async (params = {}) => {
+  try {
+    const { data } = await api.get("/users", { params });
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/**
+ * Update user role (Admin)
+ * PATCH /users/:id/role
+ */
+export const updateUserRole = async (id, role) => {
+  try {
+    const { data } = await api.patch(`/users/${id}/role`, { role });
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/**
+ * Get buyers assigned to a staff member by code
+ * GET /users/staff/:code
+ */
 export const getBuyersByStaffCode = async (code, params = {}) => {
   try {
     const { data } = await api.get(`/users/staff/${code}`, { params });
@@ -37,7 +94,10 @@ export const getBuyersByStaffCode = async (code, params = {}) => {
   }
 };
 
-/** Admin: GET /users (all buyers) */
+/**
+ * List buyers (Admin)
+ * GET /users?type=buyer
+ */
 export const listBuyers = async (params = {}) => {
   try {
     const { data } = await api.get("/users", { params });
@@ -47,7 +107,10 @@ export const listBuyers = async (params = {}) => {
   }
 };
 
-/** Admin: PUT /users/approve/:id */
+/**
+ * Approve a buyer (Admin)
+ * PUT /users/approve/:id
+ */
 export const approveBuyer = async (id) => {
   try {
     const { data } = await api.put(`/users/approve/${id}`);
@@ -57,7 +120,10 @@ export const approveBuyer = async (id) => {
   }
 };
 
-/** Admin: PUT /users/reject/:id */
+/**
+ * Reject a buyer (Admin)
+ * PUT /users/reject/:id
+ */
 export const rejectBuyer = async (id, payload = {}) => {
   try {
     const { data } = await api.put(`/users/reject/${id}`, payload);
@@ -67,9 +133,15 @@ export const rejectBuyer = async (id, payload = {}) => {
   }
 };
 
+/* ================================
+   ✅ DEFAULT EXPORT
+   ================================ */
 export default {
   getById,
+  getProfile,
   updateProfile,
+  getAllUsers,
+  updateUserRole,
   getBuyersByStaffCode,
   listBuyers,
   approveBuyer,

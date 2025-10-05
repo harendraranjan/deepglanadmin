@@ -2,8 +2,8 @@
 import axios from "axios";
 
 /** Use same base as the app */
-// export const BASE_URL = "https://deepglam.onrender.com/api"; 
-export const BASE_URL = "http://192.168.62.239:3001/api"; 
+export const BASE_URL = "https://deepglam.onrender.com/api"; 
+// export const BASE_URL = "http://192.168.62.239:3001/api"; 
 
 /** Single axios instance */
 const api = axios.create({

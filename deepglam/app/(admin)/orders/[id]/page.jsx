@@ -1,315 +1,474 @@
+// app/(admin)/orders/[id]/page.jsx
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { useRouter, useParams } from "next/navigation";
+import orderService from "@/services/orderService";
 
-const API_URL = "http://localhost:5000/api/orders";
+export default function OrderDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const orderId = params.id;
 
-export default function OrdersPage() {
-  const [orders, setOrders] = useState([]);
+  const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedOrders, setSelectedOrders] = useState([]);
-  const [bulkStatus, setBulkStatus] = useState("");
-  const [message, setMessage] = useState("");
+  const [updating, setUpdating] = useState(false);
 
-  // 🔑 Token headers
-  const getAuthHeaders = () => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("token") || localStorage.getItem("accessToken")
-        : null;
-    return token
-      ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-      : {};
-  };
+  useEffect(() => {
+    if (orderId) {
+      fetchOrder();
+    }
+  }, [orderId]);
 
-  // 📥 Fetch all orders
-  const fetchOrders = async () => {
+  const fetchOrder = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_URL, { headers: getAuthHeaders() });
+      const response = await orderService.getById(orderId);
 
-      const mappedOrders = (res.data.data || []).map((o) => ({
-        ...o,
-        buyerName: o.buyerUserId?.name,
-        buyerEmail: o.buyerUserId?.email,
-        buyerPhone: o.buyerUserId?.phone,
-        finalAmount: (o.finalAmountPaise || 0) / 100,
-        city: o.deliveryAddress?.city,
-        state: o.deliveryAddress?.state,
-        products: (o.products || []).map((p) => ({
-          ...p,
-          total: (p.totalPaise || 0) / 100,
-        })),
-      }));
-
-      setOrders(mappedOrders);
-    } catch (err) {
-      console.error("Fetch orders error:", err);
-      setOrders([]);
+      if (response.ok) {
+        setOrder(response.data.order);
+      } else {
+        alert(response.error || "Failed to fetch order");
+        router.push("/orders");
+      }
+    } catch (error) {
+      console.error("Fetch order error:", error);
+      alert("Failed to load order");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  const handleStatusUpdate = async (newStatus) => {
+    if (!confirm(`Update order status to ${newStatus}?`)) return;
 
-  // 📌 Status badge
-  const getStatusBadge = (status) => {
-    const base = "px-3 py-1 rounded-full text-xs font-bold";
-    const s = status?.toLowerCase();
-    if (s === "confirmed") return <span className={`${base} bg-blue-100 text-blue-700`}>Confirmed</span>;
-    if (s === "unpaid") return <span className={`${base} bg-red-100 text-red-700`}>Unpaid</span>;
-    if (s === "paid") return <span className={`${base} bg-green-100 text-green-700`}>Paid</span>;
-    if (s === "delivered") return <span className={`${base} bg-green-200 text-green-900`}>Delivered</span>;
-    if (s === "cancelled") return <span className={`${base} bg-gray-400 text-black`}>Cancelled</span>;
-    return <span className={`${base} bg-gray-200 text-gray-800`}>{status}</span>;
-  };
-
-  // ✅ Bulk status update
-  const handleBulkUpdate = async () => {
-    if (!bulkStatus || selectedOrders.length === 0) {
-      setMessage("⚠️ Select at least one order and a status");
-      return;
-    }
     try {
-      const res = await axios.put(
-        `${API_URL}/bulk`,
-        { orderIds: selectedOrders, status: bulkStatus },
-        { headers: getAuthHeaders() }
-      );
-      setMessage(res.data.message || "✅ Orders updated successfully!");
-      setSelectedOrders([]);
-      setBulkStatus("");
-      fetchOrders();
-      setTimeout(() => setMessage(""), 3000);
-    } catch (err) {
-      console.error("Bulk update error:", err);
-      setMessage("❌ Failed to bulk update orders");
-    }
-  };
+      setUpdating(true);
+      const response = await orderService.updateStatus(orderId, {
+        status: newStatus,
+        note: `Status updated to ${newStatus}`,
+      });
 
-  // ✅ Cancel single order
-  const cancelOrder = async (id) => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
-    try {
-      await axios.delete(`${API_URL}/${id}`, { headers: getAuthHeaders() });
-      setMessage("✅ Order cancelled successfully");
-      fetchOrders();
-    } catch (err) {
-      console.error("Cancel order error:", err);
-      setMessage("❌ Failed to cancel order");
-    }
-  };
-
-  // ✅ Update status (confirmed, delivered, etc.)
-  const updateStatus = async (id, status) => {
-    try {
-      await axios.put(
-        `${API_URL}/${id}/status`,
-        { status },
-        { headers: getAuthHeaders() }
-      );
-      setMessage(`✅ Order marked as ${status}`);
-      fetchOrders();
-    } catch (err) {
-      console.error("Update status error:", err);
-      setMessage("❌ Failed to update status");
-    }
-  };
-
-  // ✅ Dispatch selected orders
-  const dispatchOrders = async () => {
-    if (selectedOrders.length === 0) {
-      setMessage("⚠️ Select at least one order to dispatch");
-      return;
-    }
-    try {
-      await axios.post(
-        `${API_URL}/dispatch`,
-        { orderIds: selectedOrders },
-        { headers: getAuthHeaders() }
-      );
-      setMessage("✅ Orders dispatched successfully!");
-      setSelectedOrders([]);
-      fetchOrders();
-    } catch (err) {
-      console.error("Dispatch error:", err);
-      setMessage("❌ Failed to dispatch orders");
-    }
-  };
-
-  // 🔍 Filtering
-  const filteredOrders = orders
-    .filter((order) => {
-      if (filter === "delivered") return order.status?.toLowerCase() === "delivered";
-      if (filter === "cancelled") return order.status?.toLowerCase() === "cancelled";
-      if (filter === "recent" && selectedDate) {
-        const orderDate = new Date(order.createdAt).toISOString().split("T")[0];
-        return orderDate === selectedDate;
+      if (response.ok) {
+        alert("Order status updated successfully");
+        fetchOrder();
+      } else {
+        alert(response.error || "Failed to update status");
       }
-      return (
-        order.buyerName?.toLowerCase().includes(search.toLowerCase()) ||
-        order.orderNumber?.toLowerCase().includes(search.toLowerCase())
-      );
-    })
-    .sort((a, b) => {
-      if (filter === "recent") return new Date(b.createdAt) - new Date(a.createdAt);
-      if (filter === "highvalue") return b.finalAmount - a.finalAmount;
-      return 0;
-    });
+    } catch (error) {
+      console.error("Update status error:", error);
+      alert("Failed to update status");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handlePaymentUpdate = async () => {
+    const amount = prompt("Enter payment amount (₹):");
+    if (!amount || isNaN(amount)) return;
+
+    try {
+      setUpdating(true);
+      const response = await orderService.updatePayment(orderId, {
+        paidAmount: parseFloat(amount),
+        note: `Payment of ₹${amount} received`,
+      });
+
+      if (response.ok) {
+        alert("Payment updated successfully");
+        fetchOrder();
+      } else {
+        alert(response.error || "Failed to update payment");
+      }
+    } catch (error) {
+      console.error("Update payment error:", error);
+      alert("Failed to update payment");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDispatch = async () => {
+    const courier = prompt("Enter courier name:", "Default Courier");
+    if (!courier) return;
+
+    try {
+      setUpdating(true);
+      const response = await orderService.markDispatched(orderId, {
+        courier,
+        note: "Order dispatched",
+      });
+
+      if (response.ok) {
+        alert("Order dispatched successfully");
+        fetchOrder();
+      } else {
+        alert(response.error || "Failed to dispatch order");
+      }
+    } catch (error) {
+      console.error("Dispatch error:", error);
+      alert("Failed to dispatch order");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    const reason = prompt("Enter cancellation reason:");
+    if (!reason) return;
+
+    try {
+      setUpdating(true);
+      const response = await orderService.cancel(orderId, { reason });
+
+      if (response.ok) {
+        alert("Order cancelled successfully");
+        fetchOrder();
+      } else {
+        alert(response.error || "Failed to cancel order");
+      }
+    } catch (error) {
+      console.error("Cancel error:", error);
+      alert("Failed to cancel order");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      confirmed: "bg-orange-100 text-orange-800 border-orange-200",
+      processing: "bg-blue-100 text-blue-800 border-blue-200",
+      packed: "bg-purple-100 text-purple-800 border-purple-200",
+      shipped: "bg-indigo-100 text-indigo-800 border-indigo-200",
+      delivered: "bg-green-100 text-green-800 border-green-200",
+      cancelled: "bg-red-100 text-red-800 border-red-200",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const getPaymentColor = (paymentStatus) => {
+    const colors = {
+      paid: "bg-green-100 text-green-800 border-green-200",
+      partially_paid: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      unpaid: "bg-red-100 text-red-800 border-red-200",
+    };
+    return colors[paymentStatus] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <svg className="animate-spin h-8 w-8 text-orange-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+            <p className="text-gray-500">Loading order details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">
+          <p className="text-red-500">Order not found</p>
+          <button onClick={() => router.push("/orders")} className="mt-4 text-orange-600 hover:underline">
+            Back to Orders
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-gray-900 min-h-screen p-6 text-white">
-      <h1 className="text-3xl font-bold mb-6 text-orange-500">📦 Orders Management</h1>
-
-      {message && <div className="mb-4 p-3 rounded bg-green-600">{message}</div>}
-
-      {/* Filter Buttons */}
-      <div className="flex gap-3 mb-6">
-        {["all", "delivered", "cancelled", "recent", "highvalue"].map((f) => (
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <button
-            key={f}
-            onClick={() => {
-              setFilter(f);
-              setSelectedDate("");
-            }}
-            className={`px-4 py-2 rounded-md ${
-              filter === f ? "bg-orange-500" : "bg-gray-700"
-            }`}
+            onClick={() => router.push("/orders")}
+            className="p-2 hover:bg-gray-100 rounded-lg"
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
-        ))}
-      </div>
-
-      {/* Search */}
-      <input
-        type="text"
-        placeholder="Search by buyer or order..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="p-2 border rounded bg-white mb-4 text-black"
-      />
-
-      {/* Bulk Controls */}
-      <div className="flex gap-3 mb-6 items-center">
-        <select
-          value={bulkStatus}
-          onChange={(e) => setBulkStatus(e.target.value)}
-          className="px-3 py-2 rounded bg-white text-black"
-        >
-          <option value="">-- Select Status --</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="paid">Paid</option>
-          <option value="delivered">Delivered</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <button
-          onClick={handleBulkUpdate}
-          className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-        >
-          Bulk Update
-        </button>
-        <button
-          onClick={dispatchOrders}
-          className="px-4 py-2 bg-purple-600 rounded hover:bg-purple-700"
-        >
-          Dispatch Selected
-        </button>
-      </div>
-
-      {loading ? (
-        <p className="text-orange-400">Loading orders...</p>
-      ) : (
-        <div className="overflow-x-auto rounded-md border border-black">
-          <table className="min-w-full text-sm bg-gray-800 border-collapse border border-black">
-            <thead className="bg-gray-700 text-white text-xs font-semibold uppercase border border-black">
-              <tr>
-                <th className="p-3 border border-black">
-                  <input
-                    type="checkbox"
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedOrders(filteredOrders.map((o) => o._id));
-                      } else {
-                        setSelectedOrders([]);
-                      }
-                    }}
-                  />
-                </th>
-                <th className="p-3 border border-black">Order ID</th>
-                <th className="p-3 border border-black">Buyer</th>
-                <th className="p-3 border border-black">Email / Phone</th>
-                <th className="p-3 border border-black">Products</th>
-                <th className="p-3 border border-black">Amount</th>
-                <th className="p-3 border border-black">Status</th>
-                <th className="p-3 border border-black">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-200">
-              {filteredOrders.map((order) => (
-                <tr key={order._id} className="border border-black hover:bg-gray-700">
-                  <td className="p-3 border border-black">
-                    <input
-                      type="checkbox"
-                      checked={selectedOrders.includes(order._id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedOrders([...selectedOrders, order._id]);
-                        } else {
-                          setSelectedOrders(
-                            selectedOrders.filter((id) => id !== order._id)
-                          );
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className="p-3 border border-black">{order.orderNumber}</td>
-                  <td className="p-3 border border-black">{order.buyerName}</td>
-                  <td className="p-3 border border-black">
-                    {order.buyerEmail} / {order.buyerPhone}
-                  </td>
-                  <td className="p-3 border border-black">
-                    {order.products?.map((p, i) => (
-                      <div key={i}>
-                        {p.product?.productName} × {p.quantity} = ₹{p.total}
-                      </div>
-                    ))}
-                  </td>
-                  <td className="p-3 border border-black">₹{order.finalAmount}</td>
-                  <td className="p-3 border border-black">{getStatusBadge(order.status)}</td>
-                  <td className="p-3 border border-black space-x-2">
-                    <button
-                      onClick={() => updateStatus(order._id, "confirmed")}
-                      className="px-2 py-1 bg-blue-600 rounded text-xs"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => updateStatus(order._id, "delivered")}
-                      className="px-2 py-1 bg-green-600 rounded text-xs"
-                    >
-                      Deliver
-                    </button>
-                    <button
-                      onClick={() => cancelOrder(order._id)}
-                      className="px-2 py-1 bg-red-600 rounded text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Order Details</h1>
+            <p className="text-gray-500 mt-1">Order #{order.orderNumber}</p>
+          </div>
         </div>
-      )}
+        <div className="flex gap-2">
+          <span className={`px-4 py-2 rounded-lg text-sm font-medium border ${getStatusColor(order.status)}`}>
+            {order.status}
+          </span>
+          <span className={`px-4 py-2 rounded-lg text-sm font-medium border ${getPaymentColor(order.paymentStatus)}`}>
+            {order.paymentStatus}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Products */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Products</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {order.products?.map((item, index) => (
+                  <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{item.productName}</p>
+                      <p className="text-sm text-gray-500">Brand: {item.brand}</p>
+                      <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900">
+                        ₹{((item.pricePerUnitPaise || 0) / 100).toFixed(2)}
+                      </p>
+                      <p className="text-sm text-gray-500">per unit</p>
+                      <p className="text-sm font-medium text-orange-600">
+                        Total: ₹{((item.totalPaise || 0) / 100).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Address */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Delivery Address</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-2">
+                <p className="font-medium text-gray-900">{order.deliveryAddress?.shopName}</p>
+                <p className="text-gray-600">{order.deliveryAddress?.fullAddress}</p>
+                <p className="text-gray-600">
+                  {order.deliveryAddress?.city}, {order.deliveryAddress?.state} - {order.deliveryAddress?.postalCode}
+                </p>
+                <p className="text-gray-600">{order.deliveryAddress?.country || "India"}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Logs */}
+          {order.statusLogs && order.statusLogs.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Order Timeline</h3>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {order.statusLogs.map((log, index) => (
+                    <div key={index} className="flex gap-4">
+                      <div className="flex-shrink-0 w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{log.action}</p>
+                        <p className="text-sm text-gray-500">{log.note}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Order Summary */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Order Summary</h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-medium text-gray-900">
+                  ₹{((order.subtotalPaise || 0) / 100).toFixed(2)}
+                </span>
+              </div>
+              {order.discountPaise > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Discount</span>
+                  <span className="font-medium text-green-600">
+                    -₹{((order.discountPaise || 0) / 100).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Tax (18%)</span>
+                <span className="font-medium text-gray-900">
+                  ₹{((order.taxPaise || 0) / 100).toFixed(2)}
+                </span>
+              </div>
+              <div className="border-t border-gray-200 pt-3 flex justify-between">
+                <span className="font-semibold text-gray-900">Total Amount</span>
+                <span className="font-bold text-xl text-orange-600">
+                  ₹{((order.finalAmountPaise || 0) / 100).toFixed(2)}
+                </span>
+              </div>
+              {order.paidAmountPaise > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Paid Amount</span>
+                    <span className="font-medium text-green-600">
+                      ₹{((order.paidAmountPaise || 0) / 100).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Remaining</span>
+                    <span className="font-medium text-red-600">
+                      ₹{((order.finalAmountPaise - order.paidAmountPaise) / 100).toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Customer Info */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Customer Info</h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <div>
+                <p className="text-sm text-gray-500">Name</p>
+                <p className="font-medium text-gray-900">{order.buyerUserId?.name || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Phone</p>
+                <p className="font-medium text-gray-900">{order.buyerUserId?.phone || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-medium text-gray-900">{order.buyerUserId?.email || "N/A"}</p>
+              </div>
+              {order.employeeCode && (
+                <div>
+                  <p className="text-sm text-gray-500">Employee Code</p>
+                  <p className="font-medium text-gray-900">{order.employeeCode}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Actions</h3>
+            </div>
+            <div className="p-6 space-y-2">
+              {/* ✅ NEW: Generate Bill Button */}
+              <button
+                onClick={() => router.push(`/orders/${orderId}/bill`)}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Generate Bill
+              </button>
+
+              {order.status === "confirmed" && (
+                <button
+                  onClick={() => handleStatusUpdate("processing")}
+                  disabled={updating}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                >
+                  Mark as Processing
+                </button>
+              )}
+              {order.status === "processing" && (
+                <button
+                  onClick={() => handleStatusUpdate("packed")}
+                  disabled={updating}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
+                >
+                  Mark as Packed
+                </button>
+              )}
+              {order.status === "packed" && (
+                <button
+                  onClick={handleDispatch}
+                  disabled={updating}
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                >
+                  Dispatch Order
+                </button>
+              )}
+              {order.status === "shipped" && (
+                <button
+                  onClick={() => handleStatusUpdate("delivered")}
+                  disabled={updating}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
+                >
+                  Mark as Delivered
+                </button>
+              )}
+              {order.paymentStatus !== "paid" && (
+                <button
+                  onClick={handlePaymentUpdate}
+                  disabled={updating}
+                  className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 font-medium"
+                >
+                  Update Payment
+                </button>
+              )}
+              {!["shipped", "delivered", "cancelled"].includes(order.status) && (
+                <button
+                  onClick={handleCancel}
+                  disabled={updating}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-medium"
+                >
+                  Cancel Order
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Order Info */}
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Order Info</h3>
+            </div>
+            <div className="p-6 space-y-3 text-sm">
+              <div>
+                <p className="text-gray-500">Order Date</p>
+                <p className="font-medium text-gray-900">
+                  {new Date(order.createdAt).toLocaleString()}
+                </p>
+              </div>
+              {order.notes && (
+                <div>
+                  <p className="text-gray-500">Notes</p>
+                  <p className="font-medium text-gray-900">{order.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

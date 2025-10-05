@@ -73,15 +73,9 @@ export default function Sidebar() {
                 // { href: "/master/sizes", label: "Sizes" },
                 // { href: "/master/colors", label: "Colors" },
                 // { href: "/master/coupons", label: "Coupons" },
-                // { href: "/master/hsn", label: "HSN Codes" },
-                // { href: "/master/profit", label: "Profit %" },
-                // { href: "/master/location", label: "Locations" },
-                // { href: "/master/country", label: "Country" },
-                // { href: "/master/state", label: "State" },
-                // { href: "/master/city", label: "City" },
-                // { href: "/master/brand", label: "Brand" },
-                // { href: "/master/blog", label: "Blog" },
-                // { href: "/master/document-type", label: "Document Types" },
+                { href: "/master/hsn", label: "HSN Codes" },
+                { href: "/master/profit", label: "Profit %" },
+                { href: "/master/location", label: "Locations" },
               ].map((item) => (
                 <Link
                   key={item.href}
@@ -167,26 +161,29 @@ export default function Sidebar() {
           {openGroup === "order" && (
             <div className="ml-12 mr-3 space-y-1 mb-3 animate-fadeIn">
               {[
-                { href: "/orders/list", label: "All Orders" },
-                //{ href: "/orders/billing", label: "Delivered Orders" },
-                //{ href: "/orders/canceled", label: "Canceled Orders" },
-                //{ href: "/orders/returns", label: "Return Orders" },
-                //{ href: "/orders/reject-report", label: "Cancel Order" },
-               // { href: "/orders/reports", label: "Delivered Order" },
-                // { href: "/orders/Placed", label: " Placed Order " },
-                 // { href: "/orders/Bill", label: " Bill Order " },
-                  
+                { href: "/orders", label: "All Orders", badge: null },
+                { href: "/orders?status=confirmed", label: "Confirmed", badge: "orange" },
+                { href: "/orders?status=processing", label: "Processing", badge: "blue" },
+                { href: "/orders?status=packed", label: "Packed", badge: "purple" },
+                { href: "/orders?status=shipped", label: "Shipped", badge: "indigo" },
+                { href: "/orders?status=delivered", label: "Delivered", badge: "green" },
+                { href: "/orders?status=cancelled", label: "Cancelled", badge: "red" },
+                { href: "/orders/bulk-dispatch", label: "Bulk Dispatch", badge: null },
+                { href: "/orders/payment", label: "Payment Management", badge: null },
               ].map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block px-4 py-2 rounded-md text-sm transition-colors duration-150 ${
+                  className={`flex items-center justify-between px-4 py-2 rounded-md text-sm transition-colors duration-150 ${
                     isActive(item.href)
                       ? "bg-orange-50 text-orange-700 font-medium"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className={`w-2 h-2 rounded-full bg-${item.badge}-500`}></span>
+                  )}
                 </Link>
               ))}
             </div>

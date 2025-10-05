@@ -7,10 +7,10 @@ export const parseError = (e) =>
   e?.message ||
   "Something went wrong";
 
-// normalize various server shapes into a consistent object
 const pickOrder = (data) => data?.order ?? data;
 
-/* -------------------- Place & Read -------------------- */
+/* -------------------- 1. BUYER FUNCTIONS -------------------- */
+
 export const placeOrder = async (payload) => {
   try {
     const { data } = await api.post("/orders", payload);
@@ -20,7 +20,9 @@ export const placeOrder = async (payload) => {
   }
 };
 
-// ✅ NEW: Get orders with role-based filtering  
+/* -------------------- 2. COMMON FUNCTIONS (All Roles) -------------------- */
+
+// ✅ FIXED: Use /orders/my instead of /orders for role-based access
 export const getMyOrders = async (params = {}) => {
   try {
     const { data } = await api.get("/orders/my", { params });
@@ -30,23 +32,12 @@ export const getMyOrders = async (params = {}) => {
   }
 };
 
-export const list = async (params = {}) => {
+// ✅ NEW: Admin-only function to get ALL orders
+export const getAllOrders = async (params = {}) => {
   try {
     const { data } = await api.get("/orders", { params });
-    // server may return {orders:[...]} or [...]
     const orders = Array.isArray(data) ? data : (data?.orders ?? data?.data ?? []);
-    return { ok: true, data: { orders } };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-// Buyer-scoped list (recommended for "my orders")
-export const listByBuyer = async (buyerId, params = {}) => {
-  try {
-    const { data } = await api.get(`/buyers/${buyerId}/orders`, { params });
-    const orders = Array.isArray(data) ? data : (data?.orders ?? []);
-    return { ok: true, data: { orders } };
+    return { ok: true, data: { orders }, pagination: data?.pagination };
   } catch (e) {
     return { ok: false, error: parseError(e) };
   }
@@ -61,61 +52,16 @@ export const getById = async (id) => {
   }
 };
 
-// Buyer-scoped detail (strict ownership)
-export const getBuyerOrderById = async (buyerId, orderId) => {
+export const getBrandBill = async (orderId, { brand, sellerUserId } = {}) => {
   try {
-    const { data } = await api.get(`/buyers/${buyerId}/orders/${orderId}`);
-    return { ok: true, data: { order: pickOrder(data) } };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-/* -------------------- NEW: Dashboard Functions -------------------- */
-
-// ✅ NEW: Seller Dashboard
-export const getSellerDashboard = async (params = {}) => {
-  try {
-    const { data } = await api.get("/orders/seller/dashboard", { params });
+    const query = `?brand=${encodeURIComponent(brand)}&sellerUserId=${encodeURIComponent(sellerUserId)}`;
+    const { data } = await api.get(`/orders/${orderId}/bill${query}`);
     return { ok: true, data: data?.data || data };
   } catch (e) {
     return { ok: false, error: parseError(e) };
   }
 };
 
-// ✅ NEW: Seller Earnings
-export const getSellerEarnings = async (params = {}) => {
-  try {
-    const { data } = await api.get("/orders/seller/earnings", { params });
-    return { ok: true, data: data?.data || data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-// ✅ NEW: Staff Dashboard  
-export const getStaffDashboard = async (params = {}) => {
-  try {
-    const { data } = await api.get("/orders/staff/dashboard", { params });
-    return { ok: true, data: data?.data || data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-// ✅ NEW: Staff Buyers
-export const getStaffBuyers = async (params = {}) => {
-  try {
-    const { data } = await api.get("/orders/staff/buyers", { params });
-    return { ok: true, data: data?.data || data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-/* ------------------ Status transitions ----------------- */
-
-// ✅ UPDATED: Use correct endpoint
 export const updateStatus = async (id, statusPayload) => {
   try {
     const { data } = await api.put(`/orders/${id}/status`, statusPayload);
@@ -125,46 +71,6 @@ export const updateStatus = async (id, statusPayload) => {
   }
 };
 
-export const markPacked = async (id, payload = {}) => {
-  return updateStatus(id, { status: "packed", ...payload });
-};
-
-// ✅ UPDATED: Use bulk dispatch endpoint
-export const markDispatched = async (id, payload = {}) => {
-  try {
-    const dispatchPayload = {
-      orderIds: [id],
-      courier: payload.courier || "Default Courier",
-      dispatchNote: payload.note || payload.dispatchNote || ""
-    };
-    const { data } = await api.post(`/orders/dispatch`, dispatchPayload);
-    return { ok: true, data: { results: data?.results || data } };
-  } catch (e) {
-    // fallback via generic status
-    return updateStatus(id, { status: "shipped", ...payload });
-  }
-};
-
-// ✅ UPDATED: Bulk dispatch for multiple orders
-export const bulkDispatch = async (orderIds, payload = {}) => {
-  try {
-    const dispatchPayload = {
-      orderIds,
-      courier: payload.courier || "Default Courier", 
-      dispatchNote: payload.note || payload.dispatchNote || ""
-    };
-    const { data } = await api.post(`/orders/dispatch`, dispatchPayload);
-    return { ok: true, data: data?.results || data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-export const markDelivered = async (id, payload = {}) => {
-  return updateStatus(id, { status: "delivered", ...payload });
-};
-
-// ✅ UPDATED: Use correct cancel endpoint
 export const cancel = async (id, payload = {}) => {
   try {
     const { data } = await api.delete(`/orders/${id}`, { data: payload });
@@ -174,13 +80,46 @@ export const cancel = async (id, payload = {}) => {
   }
 };
 
-export const markReturned = async (id, payload = {}) => {
-  return updateStatus(id, { status: "returned", ...payload });
+/* -------------------- 3. SELLER FUNCTIONS -------------------- */
+
+export const getSellerDashboard = async (params = {}) => {
+  try {
+    const { data } = await api.get("/orders/seller/dashboard", { params });
+    return { ok: true, data: data?.data || data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
 };
 
-/* -------------------- NEW: Payment Functions -------------------- */
+export const getSellerEarnings = async (params = {}) => {
+  try {
+    const { data } = await api.get("/orders/seller/earnings", { params });
+    return { ok: true, data: data?.data || data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
 
-// ✅ NEW: Update Payment Status
+/* -------------------- 4. STAFF FUNCTIONS -------------------- */
+
+export const getStaffDashboard = async (params = {}) => {
+  try {
+    const { data } = await api.get("/orders/staff/dashboard", { params });
+    return { ok: true, data: data?.data || data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+export const getStaffBuyers = async (params = {}) => {
+  try {
+    const { data } = await api.get("/orders/staff/buyers", { params });
+    return { ok: true, data: data?.data || data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
 export const updatePayment = async (id, paymentPayload) => {
   try {
     const { data } = await api.put(`/orders/${id}/payment`, paymentPayload);
@@ -190,93 +129,63 @@ export const updatePayment = async (id, paymentPayload) => {
   }
 };
 
-/* -------------------- NEW: Bulk Operations -------------------- */
-
-// ✅ NEW: Bulk Update Orders
-export const bulkUpdate = async (orderIds, status, note = "") => {
+export const bulkDispatch = async (orderIds, payload = {}) => {
   try {
-    const payload = { orderIds, status, note };
-    const { data } = await api.put(`/orders/bulk`, payload);
+    const dispatchPayload = {
+      orderIds,
+      courier: payload.courier || "Default Courier",
+      dispatchNote: payload.note || payload.dispatchNote || ""
+    };
+    const { data } = await api.post("/orders/dispatch", dispatchPayload);
     return { ok: true, data: data?.results || data };
   } catch (e) {
     return { ok: false, error: parseError(e) };
   }
 };
 
-/* ------------------ Invoice & Bills ----------------- */
+/* -------------------- 5. ADMIN FUNCTIONS -------------------- */
 
-// ✅ NEW: Get Brand-wise Bill
-// ✅ REPLACE THIS FUNCTION:
-export const getBrandBill = async (orderId, brand, sellerUserId) => {
+// ✅ Use getAllOrders for admin panel
+export const list = getAllOrders;
+
+export const bulkUpdate = async (orderIds, status, note = "") => {
   try {
-    const params = { brand, sellerUserId };
-    const { data } = await api.get(`/orders/${orderId}/brand-bill`, { params });
-    return { ok: true, data: data?.data || data };
+    const payload = { orderIds, status, note };
+    const { data } = await api.put("/orders/bulk", payload);
+    return { ok: true, data: data?.results || data };
   } catch (e) {
     return { ok: false, error: parseError(e) };
   }
 };
 
+/* -------------------- 6. UTILITY FUNCTIONS -------------------- */
 
-export const downloadInvoice = async (id) => {
-  try {
-    const { data } = await api.get(`/orders/${id}/invoice`);
-    const url = data?.url || data?.invoice?.url;
-    if (!url) throw new Error("Invoice URL not available");
-    return { ok: true, data: { url } };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
+export const markPacked = async (id, payload = {}) => {
+  return updateStatus(id, { status: "packed", ...payload });
 };
 
-/* -------------------- NEW: Analytics & Reporting -------------------- */
-
-// ✅ NEW: Order Analytics
-export const getOrderAnalytics = async (params = {}) => {
+export const markDispatched = async (id, payload = {}) => {
   try {
-    const { data } = await api.get("/orders/analytics", { params });
-    return { ok: true, data: data?.data || data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-// ✅ NEW: Sales Report
-export const getSalesReport = async (params = {}) => {
-  try {
-    const { data } = await api.get("/orders/reports/sales", { params });
-    return { ok: true, data: data?.data || data };
-  } catch (e) {
-    return { ok: false, error: parseError(e) };
-  }
-};
-
-/* -------------------- NEW: Advanced Filtering -------------------- */
-
-// ✅ NEW: Get orders with advanced filters
-export const getOrdersFiltered = async (filters = {}) => {
-  try {
-    const params = {
-      page: filters.page || 1,
-      limit: filters.limit || 20,
-      status: filters.status || "",
-      paymentStatus: filters.paymentStatus || "",
-      dateFrom: filters.dateFrom || "",
-      dateTo: filters.dateTo || "",
-      buyerId: filters.buyerId || "",
-      sellerId: filters.sellerId || ""
+    const dispatchPayload = {
+      orderIds: [id],
+      courier: payload.courier || "Default Courier",
+      dispatchNote: payload.note || payload.dispatchNote || ""
     };
-    
-    const { data } = await api.get("/orders/my", { params });
-    return { ok: true, data: data?.data || data };
+    const { data } = await api.post("/orders/dispatch", dispatchPayload);
+    return { ok: true, data: { results: data?.results || data } };
   } catch (e) {
-    return { ok: false, error: parseError(e) };
+    return updateStatus(id, { status: "shipped", ...payload });
   }
 };
 
-/* -------------------- Utility Functions -------------------- */
+export const markDelivered = async (id, payload = {}) => {
+  return updateStatus(id, { status: "delivered", ...payload });
+};
 
-// ✅ NEW: Format order for display
+export const markReturned = async (id, payload = {}) => {
+  return updateStatus(id, { status: "returned", ...payload });
+};
+
 export const formatOrder = (order) => {
   if (!order) return null;
   
@@ -290,13 +199,10 @@ export const formatOrder = (order) => {
   };
 };
 
-
-
-// ✅ NEW: Get order status color
 export const getStatusColor = (status) => {
   const statusColors = {
     confirmed: "#orange",
-    processing: "#blue", 
+    processing: "#blue",
     packed: "#purple",
     shipped: "#indigo",
     delivered: "#green",
@@ -308,46 +214,26 @@ export const getStatusColor = (status) => {
 
 // Export all functions
 export default {
-  // place + read
   placeOrder,
+  getMyOrders,
+  getAllOrders, // ✅ NEW
   list,
-  getMyOrders, // ✅ NEW
-  listByBuyer,
   getById,
-  getBuyerOrderById,
-  getOrdersFiltered, // ✅ NEW
-  
-  // dashboards
-  getSellerDashboard, // ✅ NEW
-  getSellerEarnings, // ✅ NEW
-  getStaffDashboard, // ✅ NEW
-  getStaffBuyers, // ✅ NEW
-  
-  // status management
+  getBrandBill,
   updateStatus,
+  cancel,
+  getSellerDashboard,
+  getSellerEarnings,
+  getStaffDashboard,
+  getStaffBuyers,
+  updatePayment,
+  bulkDispatch,
+  bulkUpdate,
   markPacked,
   markDispatched,
   markDelivered,
-  cancel,
   markReturned,
-  
-  // bulk operations
-  bulkUpdate, // ✅ NEW
-  bulkDispatch, // ✅ NEW
-  
-  // payment
-  updatePayment, // ✅ NEW
-  
-  // bills & invoices
-  getBrandBill, // ✅ NEW
-  downloadInvoice,
-  
-  // analytics
-  getOrderAnalytics, // ✅ NEW
-  getSalesReport, // ✅ NEW
-  
-  // utilities
-  formatOrder, // ✅ NEW
-  getStatusColor, // ✅ NEW
+  formatOrder,
+  getStatusColor,
   parseError
 };

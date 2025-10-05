@@ -32,13 +32,25 @@ export default function LoginPage() {
       });
 
       if (res.ok && res.data?.token && res.data?.user) {
+        // ✅ Debug: Check user role
+        console.log("✅ Login successful:", res.data.user);
+        console.log("✅ User role:", res.data.user.role);
+        
+        // ✅ Check if user has admin access
+        if (!["admin", "superadmin", "staff"].includes(res.data.user.role)) {
+          setError("Access denied. Admin/Staff role required.");
+          setLoading(false);
+          return;
+        }
+
         login({ token: res.data.token, user: res.data.user });
         router.push("/dashboard");
       } else {
         setError(res.error || "Invalid email or password");
         console.log("[LOGIN UI error]", res);
       }
-    } catch {
+    } catch (err) {
+      console.error("Login error:", err);
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -46,9 +58,15 @@ export default function LoginPage() {
   };
 
   const handleSkip = () => {
+    // ✅ Set proper admin role for development
     login({
       token: "dev-skip-token",
-      user: { name: "Dev Admin", role: "superadmin" },
+      user: { 
+        _id: "dev-admin-id",
+        name: "Dev Admin", 
+        email: "admin@deepglam.com",
+        role: "admin" // ✅ Changed from superadmin to admin
+      },
     });
     router.push("/dashboard");
   };
@@ -194,7 +212,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full py-2 bg-yellow-100 text-yellow-800 rounded-lg font-medium hover:bg-yellow-200 disabled:opacity-50 transition-colors duration-200 border border-yellow-300"
               >
-                Skip Authentication
+                Skip Authentication (Admin)
               </button>
             </div>
           </div>

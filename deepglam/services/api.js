@@ -2,7 +2,8 @@
 import axios from "axios";
 
 /** Use same base as the app */
-export const BASE_URL = "https://deepglam.onrender.com/api"; 
+// export const BASE_URL = "https://deepglam.onrender.com/api"; 
+export const BASE_URL = "http://192.168.62.239:3001/api"; 
 
 /** Single axios instance */
 const api = axios.create({
@@ -31,7 +32,7 @@ const getPathname = (url) => {
   }
 };
 
-/** Normalize “/api/products” → “/products” for route checks */
+/** Normalize "/api/products" → "/products" for route checks */
 const stripApiBase = (p) => p.replace(/^\/api\/?/, "/");
 
 /* --------------- REQUEST Interceptor --------------- */
@@ -52,9 +53,15 @@ api.interceptors.request.use(
       // 🔐 Attach JWT (same keys as app)
       try {
         const t = typeof window !== "undefined" ? localStorage.getItem("userToken") : null;
-        if (t) config.headers.Authorization = `Bearer ${t}`;
-        else delete config.headers.Authorization;
-      } catch {
+        if (t) {
+          config.headers.Authorization = `Bearer ${t}`;
+          console.log("✅ Token attached:", t.substring(0, 20) + "..."); // Debug log
+        } else {
+          console.warn("⚠️ No token found in localStorage");
+          delete config.headers.Authorization;
+        }
+      } catch (err) {
+        console.error("❌ Error reading token:", err);
         delete config.headers.Authorization;
       }
 

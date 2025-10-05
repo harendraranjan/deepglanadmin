@@ -1,39 +1,4 @@
-/*import api from "./api";
-const parseError = (e) => e?.response?.data?.message || e?.response?.data?.error || e?.message || "Something went wrong";
 
-// POST /staff
-export const create = async (payload) => {
-  try { const { data } = await api.post("/staff", payload); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-// GET /staff
-export const list = async (params = {}) => {
-  try { const { data } = await api.get("/staff", { params }); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-// PUT /staff/:id
-export const update = async (id, payload) => {
-  try { const { data } = await api.put(`/staff/${id}`, payload); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-// DELETE /staff/:id
-export const remove = async (id) => {
-  try { const { data } = await api.delete(`/staff/${id}`); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-// GET /staff/sales/:code
-export const getSalesByCode = async (code, params = {}) => {
-  try { const { data } = await api.get(`/staff/sales/${code}`, { params }); return { ok: true, data }; }
-  catch (e) { return { ok: false, error: parseError(e) }; }
-};
-
-export default { create, list, update, remove, getSalesByCode };
-*/
-// <project-root>/services/staff.js
 import api from "./api";
 
 const ok = (data) => ({ ok: true, data });

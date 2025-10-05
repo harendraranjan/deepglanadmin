@@ -452,7 +452,7 @@ export default function BillGenerationPage() {
                     </div>
                     <div className="text-white print:text-black">
                       <h1 className="text-3xl font-bold">DeepGlam</h1>
-                      <p className="text-sm">Beauty & Cosmetics</p>
+                      
                     </div>
                   </div>
                   <div className="text-right text-white print:text-black">

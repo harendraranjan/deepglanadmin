@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createProduct } from "@/services/productService";
 // brand is manual now, so we don't fetch master brands
-import { getSellers } from "@/services/sellerService";
-
+//import { getSellers } from "@/services/sellerService";
+import { list as getSellers } from "@/services/sellerService";
 /* ===== App-like enums (same as mobile) ===== */
 const MAIN_CATEGORIES = ["Clothing"];
 const SUB_CATEGORIES = ["men", "women", "kids"];

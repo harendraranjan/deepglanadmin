@@ -85,10 +85,12 @@
 import { useEffect, useState } from "react";
 import { list as getProducts } from "@/services/productService";
 import { getAllOrders } from "@/services/orderService";
-import { getBuyers } from "@/services/buyerService";
-import { getSellers } from "@/services/sellerService";
-import { getStaff } from "@/services/staffService";
-
+//import { getBuyers } from "@/services/buyerService";
+import { list as getBuyers } from "@/services/buyerService";
+//import { getSellers } from "@/services/sellerService";
+import { list as getSellers } from "@/services/sellerService";
+//import { getStaff } from "@/services/staffService";
+import { list as getStaff } from "@/services/staffService";
 export default function Dashboard() {
   const [stats, setStats] = useState({
     orders: 0,

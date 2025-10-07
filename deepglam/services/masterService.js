@@ -169,6 +169,27 @@ export const deleteCoupon = async (id) => {
 };
 
 /* ============================================================
+🎟️ COUPON - validate & mark-used (apply flow)
+============================================================ */
+export const validateCoupon = async (payload) => {
+  try {
+    const { data } = await api.post("/master/coupons/validate", payload);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+export const markCouponUsed = async (payload) => {
+  try {
+    const { data } = await api.post("/master/coupons/mark-used", payload);
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: parseError(e) };
+  }
+};
+
+/* ============================================================
 🖼️ BANNERS CRUD
 ============================================================ */
 export const getBanners = async () => {
@@ -347,6 +368,8 @@ export default {
   getCoupons,
   createCoupon,
   deleteCoupon,
+  validateCoupon,
+  markCouponUsed,
 
   // Banners
   getBanners,

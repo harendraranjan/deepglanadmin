@@ -484,7 +484,7 @@ export default function BillGenerationPage() {
                   {/* Seller Details */}
                   <div className="border-r-2 border-gray-300 pr-6">
                     <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                      <h3 className="text-xs font-bold text-black uppercase mb-2 border-b border-orange-300 pb-1">Seller Details</h3>
+                      <h3 className="text-xs font-bold text-black uppercase mb-2 border-b border-orange-300 pb-1">Dispatched From</h3>
                       {customBillData?.sellerDetails ? (
                         <>
                           <p className="text-sm font-bold text-black">{customBillData.sellerDetails.brandName}</p>

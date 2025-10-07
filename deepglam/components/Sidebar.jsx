@@ -72,7 +72,7 @@ export default function Sidebar() {
                 // { href: "/master/subcategories", label: "Sub Categories" },
                 // { href: "/master/sizes", label: "Sizes" },
                 // { href: "/master/colors", label: "Colors" },
-                // { href: "/master/coupons", label: "Coupons" },
+                { href: "/master/coupons", label: "Coupons" },
                 { href: "/master/hsn", label: "HSN Codes" },
                 { href: "/master/profit", label: "Profit %" },
                 { href: "/master/location", label: "Locations" },
